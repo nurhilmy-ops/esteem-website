@@ -850,73 +850,6 @@
       letter-spacing: 1.5px;
     }
 
-    /* ═══════════════════ CASE PROJECT ═══════════════════ */
-    #case { background: var(--off-white); }
-
-    .case-header { margin-bottom: 4rem; }
-
-    .case-inner {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 4.5rem;
-      align-items: start;
-    }
-
-    .case-story p {
-      font-size: 0.97rem;
-      color: var(--gray);
-      line-height: 1.85;
-      margin-bottom: 1.5rem;
-    }
-
-    .case-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
-    .case-list li {
-      display: flex;
-      gap: 0.85rem;
-      font-size: 0.92rem;
-      color: #444;
-      line-height: 1.55;
-      padding: 0.75rem 1rem;
-      background: #fff;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
-    .case-list li::before {
-      content: '→';
-      color: var(--red);
-      font-weight: 700;
-      flex-shrink: 0;
-    }
-
-    .case-stats { display: flex; flex-direction: column; gap: 1.25rem; }
-
-    .cs-card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 1.75rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 1.75rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-      border-left: 5px solid var(--red);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .cs-card:hover {
-      transform: translateX(4px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-    }
-
-    .cs-num {
-      font-size: 3rem;
-      font-weight: 900;
-      color: var(--red);
-      line-height: 1;
-      flex-shrink: 0;
-    }
-
-    .cs-lbl { font-size: 0.97rem; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
-    .cs-sub { font-size: 0.8rem; color: var(--gray); }
-
     /* ═══════════════════ KNOWLEDGE HUB ═══════════════════ */
     #knowledge { background: #fff; }
 
@@ -1261,7 +1194,6 @@
     @media (max-width: 960px) {
       .about-inner,
       .ind-inner,
-      .case-inner,
       .contact-inner { grid-template-columns: 1fr; gap: 3rem; }
       .vm-grid { grid-template-columns: 1fr 1fr; }
       .services-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1301,7 +1233,6 @@
     <li><a href="#vision">Vision</a></li>
     <li><a href="#services">Services</a></li>
     <li><a href="#strengths">Strengths</a></li>
-    <li><a href="#case">Case Study</a></li>
     <li><a href="knowledge/index.html">Knowledge</a></li>
     <li><a href="gallery/index.html">Field Album</a></li>
     <li><a href="#contact" class="nav-cta">Contact Us</a></li>
@@ -1787,59 +1718,6 @@
 </section>
 
 
-<!-- ═══════════════════ CASE PROJECT ═══════════════════ -->
-<section id="case">
-  <div class="case-header">
-    <div class="tag">Case Project</div>
-    <h2 class="section-title">Project TH — <span class="accent">Telekosang Hydro</span></h2>
-    <div class="divider"></div>
-  </div>
-
-  <div class="case-inner">
-    <div class="case-story">
-      <p>
-        When tasked with revamping the Telekosang Hydro O&amp;M team, we took strategic actions
-        that led to a full transformation of operations.
-      </p>
-      <ul class="case-list">
-        <li>Conducted a full operational audit to identify gaps and inefficiencies</li>
-        <li>Restructured team roles, SOPs, and implemented performance tracking</li>
-        <li>Recruited skilled personnel and introduced targeted training programs</li>
-        <li>Cleared maintenance backlogs and established a preventive maintenance regime</li>
-        <li>Introduced data-driven monitoring and root cause analysis</li>
-        <li>Streamlined spare parts management and emergency response procedures</li>
-      </ul>
-      <p>
-        These efforts turned the team into a professional, high-performing unit.
-        This success inspired the formation of EOM, focused on delivering world-class O&amp;M services for hydropower plants.
-      </p>
-    </div>
-
-    <div class="case-stats">
-      <div class="cs-card fade-item">
-        <div class="cs-num">65%</div>
-        <div>
-          <div class="cs-lbl">Reduction in Downtime</div>
-          <div class="cs-sub">Significant improvement in operational continuity</div>
-        </div>
-      </div>
-      <div class="cs-card fade-item">
-        <div class="cs-num">96%</div>
-        <div>
-          <div class="cs-lbl">Equipment Availability</div>
-          <div class="cs-sub">Near-optimal availability of critical assets</div>
-        </div>
-      </div>
-      <div class="cs-card fade-item">
-        <div class="cs-num">90%</div>
-        <div>
-          <div class="cs-lbl">Stock Availability</div>
-          <div class="cs-sub">Reliable spare parts inventory management</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ═══════════════════ KNOWLEDGE HUB ═══════════════════ -->
 <section id="knowledge">
@@ -2046,7 +1924,6 @@
         <li><a href="#vision">Vision &amp; Mission</a></li>
         <li><a href="#services">Our Services</a></li>
         <li><a href="#strengths">Our Strengths</a></li>
-        <li><a href="#case">Case Study</a></li>
         <li><a href="#ceo">CEO Remarks</a></li>
         <li><a href="knowledge/index.html">Knowledge Hub</a></li>
         <li><a href="gallery/index.html">Field Album</a></li>
