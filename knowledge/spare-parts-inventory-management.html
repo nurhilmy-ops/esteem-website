@@ -230,8 +230,7 @@
 
   <div class="comments-section">
     <h3>Comments &amp; Discussion</h3>
-    <p class="comments-note">Share your spare parts management experience or ask questions. Sign in with Google or Facebook — no new account needed.<br>
-    <strong>Note:</strong> To activate comments, <a href="https://disqus.com/admin/create/" target="_blank" rel="noopener">register this site on Disqus</a> and replace <code>YOUR-DISQUS-SHORTNAME</code> in the script below.</p>
+    <p class="comments-note">Share your spare parts management experience or ask questions. Sign in with Google or Facebook — no new account needed.</p>
     <div id="disqus_thread"></div>
   </div>
 
@@ -269,7 +268,7 @@
   document.getElementById('shareWhatsApp2').href=`https://wa.me/?text=${encodedTitle}%20${encodedURL}`;
   function copyLink(){navigator.clipboard.writeText(PAGE_URL).then(()=>{const t=document.getElementById('toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);})}
   var disqus_config=function(){this.page.url=PAGE_URL;this.page.identifier='spare-parts-inventory-management';};
-  (function(){var d=document,s=d.createElement('script');s.src='https://YOUR-DISQUS-SHORTNAME.disqus.com/embed.js';s.setAttribute('data-timestamp',+new Date());(d.head||d.body).appendChild(s);})();
+  (function(){var d=document,s=d.createElement('script');s.src='https://www-esteemcare-pro.disqus.com/embed.js';s.setAttribute('data-timestamp',+new Date());(d.head||d.body).appendChild(s);})();
 </script>
 </body>
 </html>
