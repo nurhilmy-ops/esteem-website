@@ -932,6 +932,94 @@
     .cs-lbl { font-size: 0.97rem; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
     .cs-sub { font-size: 0.8rem; color: var(--gray); }
 
+    /* ═══════════════════ KNOWLEDGE HUB ═══════════════════ */
+    #knowledge { background: #fff; }
+
+    .knowledge-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.75rem;
+    }
+
+    .article-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+    }
+    .article-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(18,33,58,0.1);
+      border-color: rgba(200,16,46,0.25);
+    }
+
+    .article-thumb {
+      height: 175px;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .article-thumb::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.3) 100%);
+    }
+    .article-thumb svg { opacity: 0.35; }
+
+    .article-body { padding: 1.5rem; flex: 1; display: flex; flex-direction: column; }
+
+    .art-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+    .art-tag {
+      font-size: 0.63rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--red);
+      background: rgba(200,16,46,0.08);
+      padding: 3px 8px;
+      border-radius: 3px;
+    }
+
+    .article-body h3 {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.4;
+      margin-bottom: 0.6rem;
+    }
+    .article-body p {
+      font-size: 0.865rem;
+      color: var(--gray);
+      line-height: 1.7;
+      flex: 1;
+    }
+
+    .article-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--gray);
+      font-weight: 500;
+    }
+    .article-meta .read-more {
+      color: var(--red);
+      font-weight: 700;
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    @media (max-width: 960px) { .knowledge-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .knowledge-grid { grid-template-columns: 1fr; } }
+
     /* ═══════════════════ CONTACT ═══════════════════ */
     #contact {
       background: var(--navy);
@@ -1230,6 +1318,7 @@
     <li><a href="#strengths">Strengths</a></li>
     <li><a href="#team">Team</a></li>
     <li><a href="#case">Case Study</a></li>
+    <li><a href="knowledge/index.html">Knowledge</a></li>
     <li><a href="#contact" class="nav-cta">Contact Us</a></li>
     <li>
       <a href="https://web-production-ef6d7.up.railway.app/login" target="_blank" rel="noopener" class="nav-portal">
@@ -1851,6 +1940,99 @@
         </div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ KNOWLEDGE HUB ═══════════════════ -->
+<section id="knowledge">
+  <div class="centered">
+    <div class="tag">Knowledge Hub</div>
+    <h2 class="section-title">Sharing What We Know</h2>
+    <div class="divider"></div>
+    <p class="section-lead">
+      Best practices, operational insights, and lessons learned from the field —
+      published by the EOM team to advance the global hydropower O&amp;M community.
+    </p>
+  </div>
+
+  <div class="knowledge-grid">
+
+    <!-- Article 1 -->
+    <a href="knowledge/preventive-maintenance-best-practices.html" class="article-card fade-item">
+      <div class="article-thumb">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="25" stroke="white" stroke-width="2.5"/>
+          <path d="M40 20v6M40 54v6M20 40h6M54 40h6" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="40" cy="40" r="9" fill="white" opacity="0.3"/>
+          <circle cx="40" cy="40" r="4" fill="white"/>
+        </svg>
+      </div>
+      <div class="article-body">
+        <div class="art-tags">
+          <span class="art-tag">Maintenance</span>
+          <span class="art-tag">Best Practice</span>
+        </div>
+        <h3>5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants</h3>
+        <p>Lessons from the field on how structured PM schedules dramatically reduce unplanned downtime and extend asset life.</p>
+        <div class="article-meta">
+          <span>EOM Team · Jan 2025</span>
+          <span class="read-more">Read → </span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Article 2 -->
+    <a href="knowledge/emergency-response-protocol.html" class="article-card fade-item">
+      <div class="article-thumb" style="background:linear-gradient(135deg,#1a2f50 0%,#2a1520 100%);">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M40 15L18 27v26l22 12 22-12V27L40 15z" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M40 15v38M18 27l22 12 22-12" stroke="white" stroke-width="2" opacity="0.5" stroke-linejoin="round"/>
+          <circle cx="40" cy="40" r="6" fill="white" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="article-body">
+        <div class="art-tags">
+          <span class="art-tag">Operations</span>
+          <span class="art-tag">Emergency</span>
+        </div>
+        <h3>Building an Effective Emergency Response Protocol for Hydro Power Plants</h3>
+        <p>A practical guide to structuring your plant's emergency response — from alert levels to communication chains and drills.</p>
+        <div class="article-meta">
+          <span>EOM Team · Feb 2025</span>
+          <span class="read-more">Read → </span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Article 3 -->
+    <a href="knowledge/spare-parts-inventory-management.html" class="article-card fade-item">
+      <div class="article-thumb" style="background:linear-gradient(135deg,#12213A 0%,#1a3a5c 100%);">
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="18" y="25" width="44" height="34" rx="4" stroke="white" stroke-width="2.5"/>
+          <path d="M26 25V20h28v5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M26 38h28M26 48h18" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <circle cx="58" cy="55" r="8" fill="white" opacity="0.25" stroke="white" stroke-width="2"/>
+          <path d="M55 55h6M58 52v6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="article-body">
+        <div class="art-tags">
+          <span class="art-tag">Supply Chain</span>
+          <span class="art-tag">Inventory</span>
+        </div>
+        <h3>Optimising Spare Parts Inventory for Minimum Downtime in Hydro O&amp;M</h3>
+        <p>How to build a lean yet reliable spare parts system that keeps your plant running without over-investing in stock.</p>
+        <div class="article-meta">
+          <span>EOM Team · Mar 2025</span>
+          <span class="read-more">Read → </span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <div class="centered" style="margin-top:3rem;">
+    <a href="knowledge/index.html" class="btn btn-navy">View All Articles →</a>
   </div>
 </section>
 

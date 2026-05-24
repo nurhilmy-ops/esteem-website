@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ── SEO & Social Sharing Meta Tags ── -->
+  <title>5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants | Esteem O&M</title>
+  <meta name="description" content="Lessons from the field on how structured PM schedules dramatically reduce unplanned downtime and extend asset life in small hydro plants." />
+  <meta name="author" content="Esteem Operation & Maintenance (EOM) Sdn Bhd" />
+
+  <!-- Open Graph (Facebook, LinkedIn, WhatsApp) -->
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants" />
+  <meta property="og:description" content="Lessons from the field on how structured PM schedules dramatically reduce unplanned downtime and extend asset life." />
+  <meta property="og:url" content="https://esteemcare.pro/knowledge/preventive-maintenance-best-practices.html" />
+  <meta property="og:image" content="https://esteemcare.pro/esteem-logo.png" />
+  <meta property="og:site_name" content="Esteem O&M Knowledge Hub" />
+  <meta property="article:published_time" content="2025-01-15" />
+  <meta property="article:author" content="EOM Team" />
+  <meta property="article:tag" content="Maintenance" />
+  <meta property="article:tag" content="Best Practice" />
+  <meta property="article:tag" content="Hydropower" />
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants" />
+  <meta name="twitter:description" content="Lessons from the field on structured PM schedules for small hydro plants — by Esteem O&M." />
+  <meta name="twitter:image" content="https://esteemcare.pro/esteem-logo.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #12213A; --navy-mid: #1B3058; --navy-dark: #0a1628;
+      --red: #C8102E; --off-white: #F5F7FA; --gray: #6b7a8f;
+      --border: #e2e8f0; --text: #1a2535;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; color: var(--text); background: #fff; line-height: 1.6; }
+
+    /* NAV */
+    nav {
+      background: var(--navy-dark); border-bottom: 2px solid var(--red);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 6%; height: 68px; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo img { height: 40px; filter: brightness(0) invert(1); }
+    .nav-back {
+      display: flex; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.875rem; font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: #fff; }
+
+    /* ARTICLE HERO */
+    .article-hero {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-mid) 100%);
+      padding: 70px 6% 60px;
+      position: relative; overflow: hidden;
+    }
+    .article-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    .article-hero-inner { position: relative; z-index: 1; max-width: 800px; margin: 0 auto; }
+
+    .art-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .art-tag {
+      font-size: 0.63rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #fff;
+      background: rgba(200,16,46,0.7); padding: 4px 10px; border-radius: 3px;
+    }
+
+    .article-hero h1 {
+      font-size: clamp(1.75rem, 3.5vw, 2.8rem);
+      font-weight: 900; color: #fff; line-height: 1.15;
+      letter-spacing: -0.5px; margin-bottom: 1.25rem;
+    }
+
+    .article-meta-bar {
+      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+      font-size: 0.82rem; color: rgba(255,255,255,0.55); font-weight: 500;
+    }
+    .meta-item { display: flex; align-items: center; gap: 6px; }
+    .meta-dot { width: 4px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 50%; }
+
+    /* SHARE BAR (top) */
+    .share-bar-top {
+      background: var(--off-white);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 6%;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    }
+    .share-label { font-size: 0.78rem; font-weight: 700; color: var(--gray); letter-spacing: 1px; text-transform: uppercase; }
+    .share-btns { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    .share-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px; border-radius: 6px;
+      font-size: 0.8rem; font-weight: 700;
+      text-decoration: none; border: none; cursor: pointer; font-family: inherit;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .share-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .share-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .share-linkedin { background: #0A66C2; color: #fff; }
+    .share-facebook { background: #1877F2; color: #fff; }
+    .share-twitter  { background: #000;    color: #fff; }
+    .share-whatsapp { background: #25D366; color: #fff; }
+    .share-copy     { background: var(--navy); color: #fff; }
+
+    /* ARTICLE BODY */
+    .article-container {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 60px 6% 40px;
+    }
+
+    .article-content { font-family: 'Merriweather', Georgia, serif; }
+
+    .article-content h2 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.5rem; font-weight: 800; color: var(--navy);
+      margin: 2.5rem 0 1rem; line-height: 1.3;
+    }
+
+    .article-content h3 {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.1rem; font-weight: 700; color: var(--navy);
+      margin: 2rem 0 0.75rem;
+    }
+
+    .article-content p {
+      font-size: 1.02rem; color: #374151;
+      line-height: 1.9; margin-bottom: 1.5rem;
+    }
+
+    .article-content ul, .article-content ol {
+      margin: 0 0 1.5rem 1.5rem;
+    }
+    .article-content li {
+      font-size: 1rem; color: #374151; line-height: 1.85; margin-bottom: 0.6rem;
+    }
+
+    .article-content strong { color: var(--navy); font-weight: 700; }
+
+    .callout {
+      background: rgba(18,33,58,0.05);
+      border-left: 4px solid var(--red);
+      padding: 1.25rem 1.5rem;
+      border-radius: 0 8px 8px 0;
+      margin: 2rem 0;
+      font-family: 'Inter', sans-serif;
+    }
+    .callout p { font-size: 0.97rem; color: var(--navy); margin: 0; font-style: italic; line-height: 1.7; }
+
+    .practice-num {
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      width: 36px; height: 36px;
+      background: var(--red); color: #fff;
+      font-size: 0.9rem; font-weight: 900;
+      border-radius: 50%; margin-bottom: 0.75rem;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .practice-block {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      transition: box-shadow 0.2s;
+    }
+    .practice-block:hover { box-shadow: 0 6px 24px rgba(18,33,58,0.07); }
+
+    .divider { width: 56px; height: 3px; background: var(--red); margin: 2.5rem 0; }
+
+    /* SHARE BAR (bottom) */
+    .share-section {
+      background: var(--off-white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem 2.5rem;
+      margin: 3rem 0;
+      text-align: center;
+    }
+    .share-section h4 {
+      font-size: 1.1rem; font-weight: 800; color: var(--navy);
+      margin-bottom: 0.5rem;
+    }
+    .share-section p { font-size: 0.875rem; color: var(--gray); margin-bottom: 1.5rem; }
+    .share-section .share-btns { justify-content: center; }
+
+    /* AUTHOR BOX */
+    .author-box {
+      display: flex; gap: 1.5rem; align-items: flex-start;
+      background: var(--navy);
+      border-radius: 12px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+    .author-avatar {
+      width: 60px; height: 60px;
+      background: var(--red);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 900; color: #fff;
+      flex-shrink: 0;
+    }
+    .author-box h5 { font-size: 0.97rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .author-box p  { font-size: 0.85rem; color: rgba(255,255,255,0.6); line-height: 1.6; }
+
+    /* COMMENTS */
+    .comments-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 2px solid var(--border);
+    }
+    .comments-section h3 {
+      font-size: 1.4rem; font-weight: 800; color: var(--navy);
+      margin-bottom: 0.5rem;
+    }
+    .comments-section .comments-note {
+      font-size: 0.85rem; color: var(--gray); margin-bottom: 2rem; line-height: 1.6;
+    }
+    .comments-section .comments-note a { color: var(--red); }
+
+    /* RELATED */
+    .related-section { margin-top: 4rem; }
+    .related-section h3 { font-size: 1.2rem; font-weight: 800; color: var(--navy); margin-bottom: 1.5rem; }
+    .related-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .related-card {
+      border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem;
+      text-decoration: none; color: inherit; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .related-card:hover { border-color: rgba(200,16,46,0.3); box-shadow: 0 4px 16px rgba(18,33,58,0.07); }
+    .related-card .art-tag { margin-bottom: 0.6rem; display: inline-block; }
+    .related-card h4 { font-size: 0.9rem; font-weight: 700; color: var(--navy); line-height: 1.4; }
+
+    /* FOOTER */
+    footer {
+      background: var(--navy-dark); color: rgba(255,255,255,0.45);
+      padding: 2rem 6%; text-align: center; font-size: 0.82rem; margin-top: 4rem;
+      border-top: 2px solid var(--red);
+    }
+    footer a { color: var(--red); text-decoration: none; }
+
+    /* COPY TOAST */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: var(--navy); color: #fff;
+      padding: 12px 20px; border-radius: 8px;
+      font-size: 0.875rem; font-weight: 600;
+      transform: translateY(80px); opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 9999;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 600px) {
+      .related-grid { grid-template-columns: 1fr; }
+      .author-box { flex-direction: column; }
+      .share-section { padding: 1.5rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast">🔗 Link copied to clipboard!</div>
+
+<!-- NAV -->
+<nav>
+  <a href="../index.html" class="nav-logo">
+    <img src="../esteem-logo.png" alt="Esteem O&M" />
+  </a>
+  <a href="index.html" class="nav-back">
+    ← Knowledge Hub
+  </a>
+</nav>
+
+<!-- ARTICLE HERO -->
+<div class="article-hero">
+  <div class="article-hero-inner">
+    <div class="art-tags">
+      <span class="art-tag">Maintenance</span>
+      <span class="art-tag">Best Practice</span>
+      <span class="art-tag">Hydropower</span>
+    </div>
+    <h1>5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants</h1>
+    <div class="article-meta-bar">
+      <span class="meta-item">By EOM Team</span>
+      <span class="meta-dot"></span>
+      <span class="meta-item">15 January 2025</span>
+      <span class="meta-dot"></span>
+      <span class="meta-item">5 min read</span>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE BAR (TOP) -->
+<div class="share-bar-top">
+  <span class="share-label">Share:</span>
+  <div class="share-btns">
+    <a class="share-btn share-linkedin" id="shareLinkedIn" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.27V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+      LinkedIn
+    </a>
+    <a class="share-btn share-facebook" id="shareFacebook" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.27h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+      Facebook
+    </a>
+    <a class="share-btn share-twitter" id="shareTwitter" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      X / Twitter
+    </a>
+    <a class="share-btn share-whatsapp" id="shareWhatsApp" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.6-.91-2.2-.24-.57-.49-.49-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.45s1.05 2.84 1.2 3.04c.15.2 2.07 3.16 5.01 4.44.7.3 1.25.48 1.68.61.7.22 1.34.19 1.85.12.56-.08 1.73-.71 1.97-1.39.25-.68.25-1.27.17-1.39-.07-.12-.27-.19-.57-.34zm-5.47 7.47h-.02A9.99 9.99 0 0 1 6.6 20.2l-.3-.19-3.14.82.84-3.06-.2-.32A9.96 9.96 0 0 1 2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-18C5.37 3.87 1.87 7.37 1.87 12c0 1.85.53 3.64 1.54 5.18L1.5 21.5l4.46-1.17A10.09 10.09 0 0 0 12 22.13c4.63 0 8.13-3.5 8.13-8.13S16.63 3.87 12 3.87z"/></svg>
+      WhatsApp
+    </a>
+    <button class="share-btn share-copy" onclick="copyLink()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+      Copy Link
+    </button>
+  </div>
+</div>
+
+<!-- ARTICLE CONTENT -->
+<div class="article-container">
+  <article class="article-content">
+
+    <p>
+      Run-of-river hydroelectric plants present a unique set of challenges for operations and maintenance teams.
+      Unlike reservoir-based systems, they depend heavily on natural river flow and have limited storage — meaning
+      any unplanned downtime directly translates to lost generation. Over the years working at Telekosang Hydro and
+      across multiple small hydro projects, our team at EOM has distilled the practices that genuinely move the
+      needle on plant availability.
+    </p>
+
+    <p>
+      This article shares five of those practices. None of them are proprietary secrets — they are disciplined
+      applications of engineering fundamentals. But consistently applying them is where most O&amp;M teams fall short.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="practice-block">
+      <div class="practice-num">1</div>
+      <h2>Build a Living PM Schedule — Not a Static Document</h2>
+      <p>
+        Most plants have a preventive maintenance schedule. Few have one that adapts. The key difference between
+        a schedule that works and one that sits in a drawer is <strong>review cadence</strong>.
+      </p>
+      <p>
+        At minimum, review your PM schedule quarterly. Each review should incorporate:
+      </p>
+      <ul>
+        <li>Actual failure data from the past quarter — which components failed, and when?</li>
+        <li>Manufacturer bulletins or updated service intervals</li>
+        <li>Seasonal variations in river flow that affect equipment stress levels</li>
+        <li>Technician feedback from the field</li>
+      </ul>
+      <div class="callout">
+        <p>"A PM schedule that doesn't change is a PM schedule that is no longer based on reality."</p>
+      </div>
+      <p>
+        We moved from annual to quarterly schedule reviews at Telekosang and saw a significant reduction in
+        reactive maintenance calls within the first two quarters.
+      </p>
+    </div>
+
+    <div class="practice-block">
+      <div class="practice-num">2</div>
+      <h2>Prioritise Lubrication as a System, Not a Task</h2>
+      <p>
+        Lubrication failures are responsible for an estimated 40–50% of rotating equipment failures in hydro plants.
+        Yet lubrication is often treated as a simple checklist item — "grease the bearings, tick the box."
+      </p>
+      <p>
+        A lubrication system approach means:
+      </p>
+      <ul>
+        <li><strong>Right lubricant selection:</strong> Match viscosity and type to operating temperature, load, and speed for each specific bearing</li>
+        <li><strong>Right quantity:</strong> Over-greasing is as damaging as under-greasing — use calculated volumes, not guesswork</li>
+        <li><strong>Right interval:</strong> Based on actual operating hours, not just calendar days</li>
+        <li><strong>Oil analysis:</strong> Quarterly oil sampling for turbine bearings to detect contamination and degradation early</li>
+        <li><strong>Storage and handling:</strong> Clean, labelled lubricant storage to prevent cross-contamination</li>
+      </ul>
+    </div>
+
+    <div class="practice-block">
+      <div class="practice-num">3</div>
+      <h2>Implement Baseline Vibration Monitoring</h2>
+      <p>
+        You don't need expensive predictive maintenance software to benefit from vibration monitoring. A portable
+        vibration meter and a disciplined baseline programme will detect developing faults months before they
+        become failures.
+      </p>
+      <p>
+        The process is straightforward:
+      </p>
+      <ol>
+        <li>Establish baselines on all rotating equipment when it is newly commissioned or after major overhaul</li>
+        <li>Measure at consistent load conditions — same operating point every time</li>
+        <li>Record at fixed measurement points marked on each machine</li>
+        <li>Plot trends monthly — it's the trend, not the absolute value, that reveals problems</li>
+        <li>Set alert thresholds at 150% of baseline; action thresholds at 200%</li>
+      </ol>
+      <div class="callout">
+        <p>Vibration trending detected an emerging bearing fault on Unit 2 at Telekosang six weeks before our predictive threshold was breached. We replaced the bearing during a planned shutdown, avoiding what would have been a catastrophic failure mid-season.</p>
+      </div>
+    </div>
+
+    <div class="practice-block">
+      <div class="practice-num">4</div>
+      <h2>Control Water Quality at the Intake</h2>
+      <p>
+        Run-of-river plants are exposed to whatever the river carries — sediment, debris, biological matter,
+        and dissolved minerals. Protecting your hydraulic and mechanical systems starts at the intake structure.
+      </p>
+      <p>Key water quality practices include:</p>
+      <ul>
+        <li><strong>Trash rack inspection and cleaning:</strong> Daily visual check; automated differential pressure monitoring where possible</li>
+        <li><strong>Sediment flushing:</strong> Structured flushing protocol during high-flow periods to prevent sediment accumulation in the settling basin</li>
+        <li><strong>Turbine wear tracking:</strong> Dimensional checks on runner wear rings during every major outage — sediment abrasion is a leading cause of efficiency loss</li>
+        <li><strong>Water sampling:</strong> Monthly pH and turbidity monitoring to detect changes that may indicate catchment events upstream</li>
+      </ul>
+    </div>
+
+    <div class="practice-block">
+      <div class="practice-num">5</div>
+      <h2>Close the Loop on Every Work Order</h2>
+      <p>
+        Maintenance documentation is where most small hydro teams lose the most value. Work orders are raised,
+        work is completed, but findings are not recorded — and so the institutional knowledge walks out the door
+        with every technician who eventually moves on.
+      </p>
+      <p>
+        Close the loop means every completed work order must include:
+      </p>
+      <ul>
+        <li>Actual findings (not just "completed as per WO")</li>
+        <li>Parts used and quantities</li>
+        <li>Time taken vs. estimated</li>
+        <li>Any deviations from the planned procedure</li>
+        <li>Technician observations and recommendations</li>
+      </ul>
+      <p>
+        This data becomes the foundation of your next PM schedule review, your spare parts planning, and your
+        training materials. Without it, you are operating blind.
+      </p>
+    </div>
+
+    <div class="divider"></div>
+
+    <h2>Closing Thoughts</h2>
+    <p>
+      None of these five practices require significant capital investment. What they require is discipline,
+      consistent execution, and leadership that values the data being generated. The plants that achieve
+      95%+ availability are not the ones with the best equipment — they are the ones with the most
+      consistent teams.
+    </p>
+    <p>
+      We hope this is useful to fellow O&amp;M practitioners. If you have questions, experiences to share,
+      or practices that have worked well in your plant, please leave a comment below — we read and respond to all of them.
+    </p>
+
+  </article>
+
+  <!-- SHARE (BOTTOM) -->
+  <div class="share-section">
+    <h4>Found this useful? Share it.</h4>
+    <p>Help fellow hydro O&amp;M professionals discover best practices — share this article on your network.</p>
+    <div class="share-btns">
+      <a class="share-btn share-linkedin" id="shareLinkedIn2" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45C23.2 24 24 23.23 24 22.27V1.73C24 .77 23.2 0 22.22 0z"/></svg>
+        Share on LinkedIn
+      </a>
+      <a class="share-btn share-facebook" id="shareFacebook2" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.07C24 5.41 18.63 0 12 0S0 5.41 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.04V9.41c0-3.02 1.8-4.7 4.54-4.7 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.88v2.27h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+        Share on Facebook
+      </a>
+      <a class="share-btn share-twitter" id="shareTwitter2" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Post on X
+      </a>
+      <a class="share-btn share-whatsapp" id="shareWhatsApp2" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.67-2.08-.17-.3-.02-.46.13-.6.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.6-.91-2.2-.24-.57-.49-.49-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.45s1.05 2.84 1.2 3.04c.15.2 2.07 3.16 5.01 4.44.7.3 1.25.48 1.68.61.7.22 1.34.19 1.85.12.56-.08 1.73-.71 1.97-1.39.25-.68.25-1.27.17-1.39-.07-.12-.27-.19-.57-.34zm-5.47 7.47h-.02A9.99 9.99 0 0 1 6.6 20.2l-.3-.19-3.14.82.84-3.06-.2-.32A9.96 9.96 0 0 1 2 12C2 6.48 6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm0-18C5.37 3.87 1.87 7.37 1.87 12c0 1.85.53 3.64 1.54 5.18L1.5 21.5l4.46-1.17A10.09 10.09 0 0 0 12 22.13c4.63 0 8.13-3.5 8.13-8.13S16.63 3.87 12 3.87z"/></svg>
+        WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <!-- AUTHOR -->
+  <div class="author-box">
+    <div class="author-avatar">EOM</div>
+    <div>
+      <h5>Esteem Operation &amp; Maintenance (EOM) Team</h5>
+      <p>
+        EOM is a specialist hydroelectric O&amp;M company established by professionals with extensive
+        field experience in run-of-river and storage hydro plants across Malaysia.
+        We share non-sensitive operational knowledge to advance the broader hydro O&amp;M community.
+        Questions? <a href="mailto:esteem.onm@gmail.com" style="color:rgba(200,16,46,0.8)">esteem.onm@gmail.com</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- COMMENTS -->
+  <div class="comments-section">
+    <h3>Comments &amp; Discussion</h3>
+    <p class="comments-note">
+      Share your thoughts, ask questions, or add practices that have worked in your plant.
+      You can sign in with your Google or Facebook account — no new account needed.<br>
+      <strong>Note:</strong> To activate comments, <a href="https://disqus.com/admin/create/" target="_blank" rel="noopener">register this site on Disqus</a>
+      and replace <code>YOUR-DISQUS-SHORTNAME</code> below with your Disqus shortname.
+    </p>
+    <div id="disqus_thread"></div>
+  </div>
+
+  <!-- RELATED ARTICLES -->
+  <div class="related-section">
+    <h3>More from the Knowledge Hub</h3>
+    <div class="related-grid">
+      <a href="emergency-response-protocol.html" class="related-card">
+        <span class="art-tag">Operations</span>
+        <h4>Building an Effective Emergency Response Protocol for Hydro Power Plants</h4>
+      </a>
+      <a href="spare-parts-inventory-management.html" class="related-card">
+        <span class="art-tag">Supply Chain</span>
+        <h4>Optimising Spare Parts Inventory for Minimum Downtime in Hydro O&M</h4>
+      </a>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>© 2025 Esteem Operation &amp; Maintenance (EOM) Sdn Bhd ·
+     <a href="../index.html">esteemcare.pro</a> ·
+     <a href="index.html">Knowledge Hub</a> ·
+     <a href="mailto:esteem.onm@gmail.com">esteem.onm@gmail.com</a>
+  </p>
+</footer>
+
+<script>
+  const PAGE_URL   = 'https://esteemcare.pro/knowledge/preventive-maintenance-best-practices.html';
+  const PAGE_TITLE = '5 Key Practices for Effective Preventive Maintenance in Run-of-River Hydro Plants';
+
+  /* ── Social share links ── */
+  const encodedURL   = encodeURIComponent(PAGE_URL);
+  const encodedTitle = encodeURIComponent(PAGE_TITLE + ' — Esteem O&M Knowledge Hub');
+
+  document.getElementById('shareLinkedIn').href  = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedURL}`;
+  document.getElementById('shareFacebook').href  = `https://www.facebook.com/sharer/sharer.php?u=${encodedURL}`;
+  document.getElementById('shareTwitter').href   = `https://twitter.com/intent/tweet?url=${encodedURL}&text=${encodedTitle}`;
+  document.getElementById('shareWhatsApp').href  = `https://wa.me/?text=${encodedTitle}%20${encodedURL}`;
+
+  document.getElementById('shareLinkedIn2').href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedURL}`;
+  document.getElementById('shareFacebook2').href = `https://www.facebook.com/sharer/sharer.php?u=${encodedURL}`;
+  document.getElementById('shareTwitter2').href  = `https://twitter.com/intent/tweet?url=${encodedURL}&text=${encodedTitle}`;
+  document.getElementById('shareWhatsApp2').href = `https://wa.me/?text=${encodedTitle}%20${encodedURL}`;
+
+  /* ── Copy link ── */
+  function copyLink() {
+    navigator.clipboard.writeText(PAGE_URL).then(() => {
+      const t = document.getElementById('toast');
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    });
+  }
+
+  /* ── Disqus comments ── */
+  /* SETUP: Replace YOUR-DISQUS-SHORTNAME with your actual Disqus shortname.
+     Register at: https://disqus.com/admin/create/
+     Choose a shortname like "esteemcare" then paste it below. */
+  var disqus_config = function () {
+    this.page.url        = PAGE_URL;
+    this.page.identifier = 'preventive-maintenance-best-practices';
+  };
+  (function() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://YOUR-DISQUS-SHORTNAME.disqus.com/embed.js';
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+</script>
+</body>
+</html>
