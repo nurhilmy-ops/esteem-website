@@ -795,75 +795,59 @@
     .ind-vis-card p { font-size: 0.82rem; color: var(--gray); font-weight: 500; line-height: 1.4; }
     .ind-vis-card.full { grid-column: span 2; }
 
-    /* ═══════════════════ TEAM ═══════════════════ */
-    #team { background: #fff; }
-
-    .team-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
+    /* ═══════════════════ CEO REMARKS ═══════════════════ */
+    #ceo {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 65%, #1a3058 100%);
+      position: relative; overflow: hidden;
     }
-
-    .team-card {
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      transition: transform 0.25s, box-shadow 0.25s;
+    #ceo::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
     }
-    .team-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 16px 48px rgba(18,33,58,0.12);
+    .ceo-inner {
+      position: relative; z-index: 1;
+      max-width: 820px; margin: 0 auto;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
     }
-
-    .team-photo {
-      width: 100%;
-      aspect-ratio: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      position: relative;
+    .ceo-quote-mark {
+      font-size: 9rem; line-height: 0.6;
+      color: var(--red); opacity: 0.25;
+      font-family: Georgia, serif;
+      margin-bottom: 1.5rem; user-select: none;
     }
-
-    .team-initials {
-      font-size: 2.5rem;
-      font-weight: 900;
-      color: rgba(255,255,255,0.18);
-      letter-spacing: -1px;
-      position: relative;
-      z-index: 1;
+    .ceo-message {
+      font-size: clamp(1rem, 1.6vw, 1.2rem);
+      color: rgba(255,255,255,0.88);
+      line-height: 1.9;
+      font-style: italic;
+      margin-bottom: 2.5rem;
     }
-
-    .team-photo img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: top center;
+    .ceo-message p + p { margin-top: 1.2rem; }
+    .ceo-divider {
+      width: 48px; height: 3px;
+      background: var(--red); margin-bottom: 1.75rem;
     }
-
-    .team-info {
-      padding: 1.1rem 1.25rem;
-      background: #fff;
-      border-top: 3px solid transparent;
-      transition: border-color 0.2s;
+    .ceo-avatar {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--red), #8b0b1f);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 900;
+      color: rgba(255,255,255,0.9); letter-spacing: -1px;
+      margin-bottom: 1rem;
+      border: 3px solid rgba(255,255,255,0.12);
     }
-    .team-card:hover .team-info { border-top-color: var(--red); }
-
-    .team-info h4 {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 3px;
-      line-height: 1.3;
+    .ceo-name {
+      font-size: 1.05rem; font-weight: 800;
+      color: #fff; margin-bottom: 0.25rem;
     }
-    .team-info p {
-      font-size: 0.73rem;
-      color: var(--red);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .ceo-title {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--red); text-transform: uppercase;
+      letter-spacing: 1.5px;
     }
 
     /* ═══════════════════ CASE PROJECT ═══════════════════ */
@@ -1271,7 +1255,7 @@
 
     /* ═══════════════════ RESPONSIVE ═══════════════════ */
     @media (max-width: 1100px) {
-      .team-grid { grid-template-columns: repeat(4, 1fr); }
+      .ceo-message { font-size: 1rem; }
     }
 
     @media (max-width: 960px) {
@@ -1283,7 +1267,7 @@
       .services-grid { grid-template-columns: repeat(2, 1fr); }
       .tech-grid { grid-template-columns: 1fr; }
       .str-grid { grid-template-columns: 1fr; }
-      .team-grid { grid-template-columns: repeat(2, 1fr); }
+
       .footer-top { grid-template-columns: 1fr 1fr; }
       .footer-brand { grid-column: span 2; }
       .nav-links { display: none; }
@@ -1317,7 +1301,6 @@
     <li><a href="#vision">Vision</a></li>
     <li><a href="#services">Services</a></li>
     <li><a href="#strengths">Strengths</a></li>
-    <li><a href="#team">Team</a></li>
     <li><a href="#case">Case Study</a></li>
     <li><a href="knowledge/index.html">Knowledge</a></li>
     <li><a href="gallery/index.html">Field Album</a></li>
@@ -1803,93 +1786,6 @@
   </div>
 </section>
 
-<!-- ═══════════════════ TEAM ═══════════════════ -->
-<section id="team">
-  <div class="centered">
-    <div class="tag">Our People</div>
-    <h2 class="section-title">The Team</h2>
-    <div class="divider"></div>
-    <p class="section-lead">
-      The EOM core team comprises experienced hydro specialists, engineers, and managers dedicated to
-      efficient, reliable, and sustainable plant operations.
-    </p>
-  </div>
-
-  <div class="team-grid">
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#1B3058,#12213A);">
-        <div class="team-initials">ZT</div>
-      </div>
-      <div class="team-info">
-        <h4>Ir Ts Zakri Abd Talib</h4>
-        <p>CEO</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#1a2f50,#12213A);">
-        <div class="team-initials">NH</div>
-      </div>
-      <div class="team-info">
-        <h4>Nur Hilmy</h4>
-        <p>Director of Operation</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#12213A,#1B3058);">
-        <div class="team-initials">AJ</div>
-      </div>
-      <div class="team-info">
-        <h4>Abd Jamal</h4>
-        <p>Plant Manager</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#1B3058,#0f1e35);">
-        <div class="team-initials">MH</div>
-      </div>
-      <div class="team-info">
-        <h4>Mohd Hariths</h4>
-        <p>Operation Engineer</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#0f1e35,#1B3058);">
-        <div class="team-initials">JK</div>
-      </div>
-      <div class="team-info">
-        <h4>John Kennedy</h4>
-        <p>Supervisor</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#1B3058,#12213A);">
-        <div class="team-initials">AL</div>
-      </div>
-      <div class="team-info">
-        <h4>Dr Amanda Lee</h4>
-        <p>Hydrologist</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#12213A,#1a3a5c);">
-        <div class="team-initials">IZ</div>
-      </div>
-      <div class="team-info">
-        <h4>Ir Zulkarnain</h4>
-        <p>Transmission</p>
-      </div>
-    </div>
-    <div class="team-card fade-item">
-      <div class="team-photo" style="background:linear-gradient(160deg,#1a3a5c,#12213A);">
-        <div class="team-initials">TL</div>
-      </div>
-      <div class="team-info">
-        <h4>Ir Tan Loo Shyang</h4>
-        <p>Civil</p>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ═══════════════════ CASE PROJECT ═══════════════════ -->
 <section id="case">
@@ -2038,6 +1934,34 @@
   </div>
 </section>
 
+<!-- ═══════════════════ CEO REMARKS ═══════════════════ -->
+<section id="ceo">
+  <div class="ceo-inner fade-item">
+    <div class="ceo-quote-mark">"</div>
+    <div class="ceo-message">
+      <p>
+        At Esteem, we believe that reliable energy starts with people who genuinely care —
+        engineers and technicians who treat every machine, every inspection, and every
+        handover with professional pride.
+      </p>
+      <p>
+        Our journey in hydroelectric operation and maintenance has taught us one enduring
+        lesson: the plants that perform best are those with teams that know them intimately.
+        We invest in that knowledge, in our systems, and in our people — so that every
+        megawatt-hour delivered is one our clients and communities can count on.
+      </p>
+      <p>
+        I am proud of what our team has built, and I remain committed to raising the
+        standard of hydropower O&amp;M in Malaysia and the region.
+      </p>
+    </div>
+    <div class="ceo-divider"></div>
+    <div class="ceo-avatar">ZT</div>
+    <div class="ceo-name">Ir Ts Zakri Abd Talib</div>
+    <div class="ceo-title">Chief Executive Officer · Esteem Operation &amp; Maintenance Sdn Bhd</div>
+  </div>
+</section>
+
 <!-- ═══════════════════ CONTACT ═══════════════════ -->
 <section id="contact">
   <div class="contact-inner">
@@ -2122,8 +2046,8 @@
         <li><a href="#vision">Vision &amp; Mission</a></li>
         <li><a href="#services">Our Services</a></li>
         <li><a href="#strengths">Our Strengths</a></li>
-        <li><a href="#team">The Team</a></li>
         <li><a href="#case">Case Study</a></li>
+        <li><a href="#ceo">CEO Remarks</a></li>
         <li><a href="knowledge/index.html">Knowledge Hub</a></li>
         <li><a href="gallery/index.html">Field Album</a></li>
       </ul>
