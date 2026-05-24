@@ -3,22 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Esteem O&amp;M | Operation and Maintenance Specialist</title>
+  <title>Esteem O&amp;M | Hydroelectric Power Plant Specialists</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --navy:       #12213A;
-      --navy-mid:   #1B3058;
-      --navy-dark:  #0a1628;
-      --red:        #C8102E;
-      --red-dark:   #A50E26;
-      --white:      #FFFFFF;
-      --off-white:  #F5F7FA;
-      --gray:       #888;
-      --text:       #1a1a2e;
+      --navy:      #12213A;
+      --navy-mid:  #1B3058;
+      --navy-dark: #0a1628;
+      --red:       #C8102E;
+      --red-dark:  #A50E26;
+      --white:     #FFFFFF;
+      --off-white: #F5F7FA;
+      --light:     #EEF1F6;
+      --gray:      #6b7a8f;
+      --text:      #1a2535;
+      --border:    #e2e8f0;
     }
 
     html { scroll-behavior: smooth; }
@@ -30,55 +32,67 @@
       line-height: 1.6;
     }
 
-    /* ──────────────── NAVBAR ──────────────── */
+    /* ═══════════════════ NAVBAR ═══════════════════ */
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 1000;
-      background: rgba(10, 22, 40, 0.97);
-      backdrop-filter: blur(8px);
+      background: transparent;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 6%;
+      padding: 0 5%;
+      height: 88px;
+      transition: background 0.4s ease, height 0.3s ease, box-shadow 0.3s ease, border-bottom 0.3s ease;
+    }
+
+    nav.scrolled {
+      background: rgba(10, 22, 40, 0.98);
+      backdrop-filter: blur(10px);
       height: 68px;
       border-bottom: 2px solid var(--red);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
     }
 
     .nav-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
       text-decoration: none;
+      flex-shrink: 0;
     }
 
     .nav-logo img {
-      height: 44px;
+      height: 46px;
       width: auto;
       display: block;
+      transition: height 0.3s;
+      filter: brightness(0) invert(1);
     }
+
+    nav.scrolled .nav-logo img { height: 40px; }
 
     .nav-links {
       display: flex;
-      gap: 1.75rem;
+      gap: 1.6rem;
       list-style: none;
       align-items: center;
     }
 
     .nav-links a {
-      color: rgba(255,255,255,0.8);
+      color: rgba(255,255,255,0.9);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
       transition: color 0.2s;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
     }
     .nav-links a:hover { color: #fff; }
 
     .nav-cta {
       background: var(--red) !important;
       color: #fff !important;
-      padding: 8px 22px !important;
+      padding: 8px 20px !important;
       border-radius: 4px;
       font-weight: 700 !important;
     }
@@ -95,19 +109,14 @@
       font-weight: 600 !important;
       font-size: 0.8rem !important;
       letter-spacing: 0.4px !important;
-      border: 1.5px solid rgba(255,255,255,0.35) !important;
+      border: 1.5px solid rgba(255,255,255,0.4) !important;
       transition: border-color 0.2s, background 0.2s !important;
     }
     .nav-portal:hover {
-      border-color: rgba(255,255,255,0.8) !important;
-      background: rgba(255,255,255,0.07) !important;
-      color: #fff !important;
+      border-color: rgba(255,255,255,0.85) !important;
+      background: rgba(255,255,255,0.08) !important;
     }
-    .nav-portal svg {
-      width: 13px; height: 13px;
-      opacity: 0.75;
-      flex-shrink: 0;
-    }
+    .nav-portal svg { width: 13px; height: 13px; opacity: 0.8; flex-shrink: 0; }
 
     .hamburger {
       display: none;
@@ -126,61 +135,67 @@
       transition: 0.3s;
     }
 
-    /* ──────────────── HERO ──────────────── */
+    /* ═══════════════════ HERO SLIDER ═══════════════════ */
     #hero {
-      min-height: 100vh;
-      background: var(--navy);
       position: relative;
+      height: 100vh;
+      min-height: 620px;
       overflow: hidden;
-      display: flex;
-      align-items: center;
-      padding: 70px 6% 60px;
     }
 
-    .hero-bg-shapes {
-      position: absolute; inset: 0; overflow: hidden; pointer-events: none;
-    }
-
-    /* Large diagonal navy panel */
-    .hero-panel {
+    .slider-track {
       position: absolute;
-      top: 0; right: 0; bottom: 0;
-      width: 58%;
-      background: var(--navy-mid);
-      clip-path: polygon(18% 0, 100% 0, 100% 100%, 0% 100%);
+      inset: 0;
     }
 
-    /* Red accent stripe */
-    .hero-stripe-red {
+    .slide {
       position: absolute;
-      top: 30%; right: 0;
-      width: 55%;
-      height: 8px;
-      background: var(--red);
-      clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
+      inset: 0;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
-    .hero-stripe-navy {
+
+    .slide.active { opacity: 1; }
+
+    /* Dark gradient overlay over each slide */
+    .slide::after {
+      content: '';
       position: absolute;
-      top: calc(30% + 10px); right: 0;
-      width: 55%;
-      height: 14px;
-      background: var(--navy-dark);
-      clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
+      inset: 0;
+      background: linear-gradient(
+        105deg,
+        rgba(8, 18, 34, 0.82) 0%,
+        rgba(10, 22, 40, 0.65) 55%,
+        rgba(10, 22, 40, 0.35) 100%
+      );
     }
 
-    /* Subtle grid texture */
-    .hero-grid {
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-      background-size: 60px 60px;
+    .slide-1 {
+      background-image: url('https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=1920&q=80&fit=crop');
+      background-color: var(--navy-dark);
+    }
+    .slide-2 {
+      background-image: url('https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=1920&q=80&fit=crop');
+      background-color: var(--navy);
+    }
+    .slide-3 {
+      background-image: url('https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1920&q=80&fit=crop');
+      background-color: var(--navy-mid);
     }
 
+    /* Hero content */
     .hero-content {
       position: relative;
       z-index: 2;
-      max-width: 600px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 100px 6% 80px;
+      max-width: 750px;
     }
 
     .hero-badge {
@@ -192,35 +207,34 @@
       letter-spacing: 2.5px;
       text-transform: uppercase;
       padding: 6px 14px;
-      margin-bottom: 1.75rem;
+      margin-bottom: 1.5rem;
+      width: fit-content;
     }
 
     .hero-title {
-      font-size: clamp(3rem, 6vw, 5.5rem);
+      font-size: clamp(2.4rem, 5.5vw, 4.8rem);
       font-weight: 900;
       color: #fff;
-      line-height: 1;
-      margin-bottom: 1rem;
-      letter-spacing: -1px;
+      line-height: 1.08;
+      margin-bottom: 1.25rem;
+      letter-spacing: -1.5px;
     }
     .hero-title .accent { color: var(--red); }
 
     .hero-sub {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.65);
-      margin-bottom: 0.75rem;
-      letter-spacing: 0.5px;
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 0.6rem;
+      font-weight: 500;
     }
 
     .hero-desc {
-      font-size: 0.95rem;
-      color: rgba(255,255,255,0.55);
-      line-height: 1.75;
+      font-size: 0.97rem;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.8;
       margin-bottom: 2.5rem;
-      max-width: 480px;
+      max-width: 520px;
     }
-    .hero-desc strong { color: var(--red); font-weight: 700; }
 
     .hero-btns {
       display: flex;
@@ -228,6 +242,44 @@
       flex-wrap: wrap;
     }
 
+    /* Slide dots */
+    .slider-dots {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 6%;
+      z-index: 3;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.35);
+      cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+      border: none;
+      padding: 0;
+    }
+    .dot.active {
+      background: var(--red);
+      transform: scale(1.3);
+    }
+
+    /* Slide counter */
+    .slide-counter {
+      position: absolute;
+      bottom: 2.4rem;
+      right: 6%;
+      z-index: 3;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+    }
+
+    /* ═══════════════════ BUTTONS ═══════════════════ */
     .btn {
       display: inline-flex;
       align-items: center;
@@ -238,52 +290,58 @@
       font-weight: 700;
       letter-spacing: 0.3px;
       text-decoration: none;
-      transition: transform 0.2s, background 0.2s, border-color 0.2s;
+      transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
       cursor: pointer;
       border: none;
       font-family: inherit;
     }
     .btn:hover { transform: translateY(-2px); }
 
-    .btn-red { background: var(--red); color: #fff; }
-    .btn-red:hover { background: var(--red-dark); }
+    .btn-red {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(200,16,46,0.3);
+    }
+    .btn-red:hover { background: var(--red-dark); box-shadow: 0 6px 20px rgba(200,16,46,0.4); }
 
     .btn-ghost {
       background: transparent;
       color: #fff;
-      border: 2px solid rgba(255,255,255,0.35);
+      border: 2px solid rgba(255,255,255,0.4);
     }
-    .btn-ghost:hover { border-color: #fff; }
+    .btn-ghost:hover { border-color: #fff; background: rgba(255,255,255,0.05); }
 
-    .hero-scroll {
-      position: absolute;
-      bottom: 2rem; left: 6%;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: rgba(255,255,255,0.4);
-      font-size: 0.78rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
+    .btn-navy {
+      background: var(--navy);
+      color: #fff;
     }
-    .scroll-line {
-      width: 40px; height: 1px;
-      background: rgba(255,255,255,0.3);
-    }
+    .btn-navy:hover { background: var(--navy-mid); }
 
-    /* ──────────────── SECTION COMMONS ──────────────── */
-    section { padding: 90px 6%; }
+    /* ═══════════════════ SECTION COMMONS ═══════════════════ */
+    section { padding: 100px 6%; }
 
     .tag {
       display: inline-block;
       background: var(--red);
       color: #fff;
-      font-size: 0.68rem;
+      font-size: 0.67rem;
       font-weight: 700;
       letter-spacing: 2.5px;
       text-transform: uppercase;
       padding: 5px 12px;
       margin-bottom: 1rem;
+    }
+
+    .tag-outline {
+      display: inline-block;
+      color: var(--red);
+      font-size: 0.67rem;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      padding: 5px 0;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid var(--red);
     }
 
     .section-title {
@@ -295,62 +353,127 @@
       letter-spacing: -0.5px;
     }
     .section-title .accent { color: var(--red); }
+    .section-title.light { color: #fff; }
 
     .section-lead {
-      font-size: 0.97rem;
-      color: #5a6a80;
+      font-size: 1rem;
+      color: var(--gray);
       max-width: 640px;
-      line-height: 1.75;
+      line-height: 1.8;
       margin-bottom: 3rem;
     }
+    .section-lead.light { color: rgba(255,255,255,0.65); }
 
     .centered { text-align: center; }
     .centered .section-lead { margin-inline: auto; }
 
-    /* ──────────────── ABOUT ──────────────── */
-    #about {
-      background: var(--navy);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .about-slash {
-      position: absolute;
-      top: 0; right: 0; bottom: 0;
-      width: 45%;
+    .divider {
+      width: 56px; height: 3px;
       background: var(--red);
-      clip-path: polygon(30% 0, 100% 0, 100% 100%, 0% 100%);
-      opacity: 0.07;
+      margin: 1.25rem 0 1.5rem;
+    }
+    .centered .divider { margin-inline: auto; }
+
+    /* ═══════════════════ ABOUT ═══════════════════ */
+    #about {
+      background: var(--white);
+      padding-top: 110px;
     }
 
     .about-inner {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 5rem;
+      gap: 6rem;
       align-items: center;
+    }
+
+    .about-text .section-lead { margin-bottom: 2rem; }
+
+    .about-features {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .about-feat {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .feat-dot {
+      width: 10px; height: 10px;
+      background: var(--red);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+
+    .feat-text {
+      font-size: 0.95rem;
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    .about-visual {
       position: relative;
-      z-index: 1;
     }
 
-    .about-text .section-title { color: #fff; }
-    .about-text .section-lead { color: rgba(255,255,255,0.6); margin-bottom: 2rem; }
+    .about-img-wrap {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+      background: var(--navy-mid);
+    }
 
-    .about-stats {
+    .about-img-wrap img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Fallback pattern when no image */
+    .about-img-bg {
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 50%, #1a3a5c 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .about-img-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .about-stats-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.25rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 1.5rem;
     }
 
-    .stat-box {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-left: 3px solid var(--red);
-      padding: 1.5rem 1.25rem;
-      border-radius: 4px;
+    .stat-item {
+      background: #fff;
+      padding: 1.75rem 1.5rem;
+      text-align: center;
     }
 
     .stat-num {
-      font-size: 2.75rem;
+      font-size: 2.8rem;
       font-weight: 900;
       color: var(--red);
       line-height: 1;
@@ -359,62 +482,81 @@
 
     .stat-lbl {
       font-size: 0.8rem;
-      color: rgba(255,255,255,0.55);
+      color: var(--gray);
       font-weight: 500;
-      letter-spacing: 0.5px;
     }
 
-    /* ──────────────── VISION & MISSION ──────────────── */
+    /* Floating accent card */
+    .about-accent {
+      position: absolute;
+      bottom: -20px;
+      left: -24px;
+      background: var(--red);
+      color: #fff;
+      padding: 1.5rem 1.75rem;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(200,16,46,0.3);
+      min-width: 180px;
+    }
+
+    .about-accent .big { font-size: 2.5rem; font-weight: 900; line-height: 1; }
+    .about-accent .label { font-size: 0.78rem; font-weight: 600; opacity: 0.9; margin-top: 4px; }
+
+    /* ═══════════════════ VISION & MISSION ═══════════════════ */
     #vision { background: var(--off-white); }
 
     .vm-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 2rem;
+      margin-top: 1rem;
     }
 
     .vm-card {
       background: #fff;
-      padding: 2.5rem;
-      border-radius: 6px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      padding: 2.75rem 2.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06);
       border-top: 4px solid transparent;
+      transition: transform 0.25s, box-shadow 0.25s;
     }
+    .vm-card:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
     .vm-card.v { border-top-color: var(--navy); }
     .vm-card.m { border-top-color: var(--red); }
 
-    .vm-icon-wrap {
-      width: 48px; height: 48px;
-      margin-bottom: 1.25rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
+    .vm-icon {
+      width: 52px; height: 52px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.5rem;
     }
-    .vm-icon-wrap .sq { border-radius: 2px; }
+    .vm-icon.navy { background: rgba(18,33,58,0.08); }
+    .vm-icon.red  { background: rgba(200,16,46,0.08); }
 
     .vm-card h3 {
-      font-size: 1.75rem;
+      font-size: 1.6rem;
       font-weight: 900;
       color: var(--navy);
       margin-bottom: 1.25rem;
     }
 
     .vm-card p, .vm-card li {
-      color: #5a6a80;
+      color: var(--gray);
       font-size: 0.95rem;
-      line-height: 1.75;
+      line-height: 1.8;
     }
 
-    .vm-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+    .vm-card ul { list-style: none; display: flex; flex-direction: column; gap: 0.85rem; }
     .vm-card ul li { display: flex; gap: 0.75rem; align-items: flex-start; }
     .vm-card ul li::before {
       content: '→';
       color: var(--red);
       font-weight: 700;
       flex-shrink: 0;
+      margin-top: 2px;
     }
 
-    /* ──────────────── SERVICES ──────────────── */
+    /* ═══════════════════ SERVICES ═══════════════════ */
     #services { background: #fff; }
 
     .services-grid {
@@ -424,50 +566,63 @@
     }
 
     .svc-card {
-      border: 1px solid #e8edf3;
-      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       overflow: hidden;
-      transition: transform 0.25s, box-shadow 0.25s;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
     }
     .svc-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 16px 48px rgba(18,33,58,0.1);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(18,33,58,0.1);
+      border-color: rgba(200,16,46,0.2);
     }
 
     .svc-thumb {
-      height: 150px;
+      height: 155px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       overflow: hidden;
     }
+    .svc-thumb svg { width: 60px; height: 60px; }
 
-    .svc-thumb svg { width: 64px; height: 64px; opacity: 0.9; }
-
-    .svc-label {
-      background: var(--red);
+    .svc-cat {
+      position: absolute;
+      top: 12px; left: 12px;
+      background: rgba(200,16,46,0.9);
       color: #fff;
-      font-size: 0.73rem;
+      font-size: 0.63rem;
       font-weight: 700;
-      padding: 7px 14px;
-      letter-spacing: 0.3px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 3px;
     }
 
-    .svc-body { padding: 1.25rem 1.5rem 1.5rem; }
+    .svc-body { padding: 1.4rem 1.6rem 1.75rem; }
     .svc-body h4 {
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--navy);
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.6rem;
+      line-height: 1.35;
     }
-    .svc-body p { font-size: 0.86rem; color: #5a6a80; line-height: 1.65; }
+    .svc-body p { font-size: 0.875rem; color: var(--gray); line-height: 1.7; }
 
-    /* ──────────────── TECH SUPPORT ──────────────── */
-    #tech { background: var(--navy); }
+    .svc-arrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--red);
+      text-decoration: none;
+    }
 
-    #tech .section-title { color: #fff; }
-    #tech .section-lead { color: rgba(255,255,255,0.6); }
+    /* ═══════════════════ TECH SUPPORT ═══════════════════ */
+    #tech { background: var(--off-white); }
 
     .tech-grid {
       display: grid;
@@ -476,21 +631,24 @@
     }
 
     .tech-card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       padding: 2rem 1.75rem;
       display: flex;
       gap: 1.25rem;
       align-items: flex-start;
-      transition: background 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
-    .tech-card:hover { background: rgba(255,255,255,0.09); }
+    .tech-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(18,33,58,0.08);
+    }
 
     .tech-icon {
-      width: 48px; height: 48px;
-      background: var(--red);
-      border-radius: 6px;
+      width: 50px; height: 50px;
+      background: var(--navy);
+      border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
@@ -499,130 +657,144 @@
     .tech-card h4 {
       font-size: 0.97rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--navy);
       margin-bottom: 0.4rem;
       line-height: 1.35;
     }
-    .tech-card p { font-size: 0.86rem; color: rgba(255,255,255,0.55); line-height: 1.65; }
+    .tech-card p { font-size: 0.875rem; color: var(--gray); line-height: 1.7; }
 
-    /* ──────────────── STRENGTHS ──────────────── */
-    #strengths { background: var(--off-white); }
+    /* ═══════════════════ STRENGTHS ═══════════════════ */
+    #strengths {
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #strengths::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 400px; height: 400px;
+      background: var(--red);
+      opacity: 0.04;
+      border-radius: 50%;
+    }
+
+    #strengths .section-title { color: #fff; }
+    #strengths .section-lead { color: rgba(255,255,255,0.6); }
+    #strengths .divider { background: var(--red); }
 
     .str-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 2rem;
-    }
-
-    .str-card {
-      background: #fff;
-      padding: 2.5rem 2rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.05);
-      position: relative;
-      overflow: hidden;
-    }
-    .str-card::before {
-      content: '';
-      position: absolute;
-      bottom: -20px; right: -20px;
-      width: 100px; height: 100px;
-      border-radius: 50%;
-      background: var(--navy);
-      opacity: 0.03;
-    }
-
-    .str-num {
-      font-size: 4rem;
-      font-weight: 900;
-      color: var(--navy);
-      opacity: 0.07;
-      line-height: 1;
-      margin-bottom: -0.5rem;
-    }
-
-    .str-arrow {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px; height: 32px;
-      background: var(--navy);
-      color: #fff;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      margin-bottom: 1rem;
-    }
-
-    .str-card h3 {
-      font-size: 1.15rem;
-      font-weight: 800;
-      color: var(--navy);
-      margin-bottom: 0.75rem;
-      line-height: 1.3;
-    }
-    .str-card p { font-size: 0.875rem; color: #5a6a80; line-height: 1.7; }
-
-    /* ──────────────── INDUSTRIES ──────────────── */
-    #industries {
-      background: var(--navy);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .ind-inner {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 5rem;
-      align-items: center;
       position: relative;
       z-index: 1;
     }
 
-    #industries .section-title { color: #fff; }
-    #industries .section-lead { color: rgba(255,255,255,0.6); margin-bottom: 2rem; }
+    .str-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 2.5rem 2rem;
+      border-radius: 10px;
+      transition: background 0.25s, transform 0.25s;
+      position: relative;
+    }
+    .str-card:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-4px);
+    }
+
+    .str-num {
+      font-size: 4.5rem;
+      font-weight: 900;
+      color: rgba(255,255,255,0.07);
+      line-height: 1;
+      position: absolute;
+      top: 1.5rem; right: 1.5rem;
+    }
+
+    .str-icon {
+      width: 46px; height: 46px;
+      background: var(--red);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1.5rem;
+    }
+    .str-icon svg { width: 22px; height: 22px; }
+
+    .str-card h3 {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 0.85rem;
+      line-height: 1.35;
+    }
+    .str-card p { font-size: 0.875rem; color: rgba(255,255,255,0.55); line-height: 1.75; }
+
+    /* ═══════════════════ INDUSTRIES ═══════════════════ */
+    #industries { background: var(--off-white); }
+
+    .ind-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6rem;
+      align-items: center;
+    }
 
     .ind-list { list-style: none; display: flex; flex-direction: column; gap: 1rem; }
 
     .ind-item {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
+      gap: 1.1rem;
+      background: #fff;
+      border: 1px solid var(--border);
       padding: 1.25rem 1.5rem;
-      border-radius: 6px;
-      color: #fff;
+      border-radius: 8px;
+      color: var(--navy);
       font-size: 1rem;
       font-weight: 600;
-      transition: background 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .ind-item:hover { background: rgba(255,255,255,0.1); }
+    .ind-item:hover {
+      border-color: rgba(200,16,46,0.3);
+      box-shadow: 0 4px 16px rgba(18,33,58,0.07);
+    }
 
-    .ind-dot {
-      width: 10px; height: 10px;
-      background: var(--red);
-      border-radius: 50%;
+    .ind-icon {
+      width: 42px; height: 42px;
+      background: rgba(18,33,58,0.07);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
+    .ind-icon svg { width: 20px; height: 20px; }
 
     .ind-visual {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem;
+      gap: 1.25rem;
     }
 
     .ind-vis-card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       padding: 2rem 1.5rem;
       text-align: center;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
+    .ind-vis-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(18,33,58,0.08);
+    }
+
     .ind-vis-card .ic { font-size: 2.25rem; margin-bottom: 0.75rem; }
-    .ind-vis-card p { font-size: 0.8rem; color: rgba(255,255,255,0.55); font-weight: 500; line-height: 1.4; }
+    .ind-vis-card p { font-size: 0.82rem; color: var(--gray); font-weight: 500; line-height: 1.4; }
     .ind-vis-card.full { grid-column: span 2; }
 
-    /* ──────────────── TEAM ──────────────── */
+    /* ═══════════════════ TEAM ═══════════════════ */
     #team { background: #fff; }
 
     .team-grid {
@@ -632,37 +804,33 @@
     }
 
     .team-card {
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
-      border: 1px solid #e8edf3;
+      border: 1px solid var(--border);
       transition: transform 0.25s, box-shadow 0.25s;
     }
     .team-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 40px rgba(18,33,58,0.1);
+      transform: translateY(-5px);
+      box-shadow: 0 16px 48px rgba(18,33,58,0.12);
     }
 
     .team-photo {
       width: 100%;
       aspect-ratio: 1;
-      background: var(--navy-mid);
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
       overflow: hidden;
       position: relative;
     }
 
     .team-initials {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 2.5rem;
       font-weight: 900;
-      color: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.18);
       letter-spacing: -1px;
+      position: relative;
+      z-index: 1;
     }
 
     .team-photo img {
@@ -675,13 +843,17 @@
     }
 
     .team-info {
-      padding: 1rem 1.1rem;
-      background: var(--navy);
+      padding: 1.1rem 1.25rem;
+      background: #fff;
+      border-top: 3px solid transparent;
+      transition: border-color 0.2s;
     }
+    .team-card:hover .team-info { border-top-color: var(--red); }
+
     .team-info h4 {
       font-size: 0.9rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--navy);
       margin-bottom: 3px;
       line-height: 1.3;
     }
@@ -693,31 +865,36 @@
       letter-spacing: 0.5px;
     }
 
-    /* ──────────────── CASE PROJECT ──────────────── */
+    /* ═══════════════════ CASE PROJECT ═══════════════════ */
     #case { background: var(--off-white); }
+
+    .case-header { margin-bottom: 4rem; }
 
     .case-inner {
       display: grid;
       grid-template-columns: 1.1fr 0.9fr;
-      gap: 4rem;
+      gap: 4.5rem;
       align-items: start;
-      margin-top: 3rem;
     }
 
     .case-story p {
-      font-size: 0.95rem;
-      color: #5a6a80;
-      line-height: 1.75;
+      font-size: 0.97rem;
+      color: var(--gray);
+      line-height: 1.85;
       margin-bottom: 1.5rem;
     }
 
-    .case-list { list-style: none; display: flex; flex-direction: column; gap: 0.65rem; }
+    .case-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
     .case-list li {
       display: flex;
-      gap: 0.75rem;
-      font-size: 0.9rem;
+      gap: 0.85rem;
+      font-size: 0.92rem;
       color: #444;
-      line-height: 1.5;
+      line-height: 1.55;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid var(--border);
     }
     .case-list li::before {
       content: '→';
@@ -730,32 +907,32 @@
 
     .cs-card {
       background: #fff;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 1.75rem 2rem;
       display: flex;
       align-items: center;
       gap: 1.75rem;
       box-shadow: 0 4px 20px rgba(0,0,0,0.05);
       border-left: 5px solid var(--red);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .cs-card:hover {
+      transform: translateX(4px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
     }
 
     .cs-num {
-      font-size: 3.25rem;
+      font-size: 3rem;
       font-weight: 900;
       color: var(--red);
       line-height: 1;
       flex-shrink: 0;
     }
 
-    .cs-lbl {
-      font-size: 0.97rem;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 3px;
-    }
-    .cs-sub { font-size: 0.8rem; color: #888; }
+    .cs-lbl { font-size: 0.97rem; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+    .cs-sub { font-size: 0.8rem; color: var(--gray); }
 
-    /* ──────────────── CONTACT ──────────────── */
+    /* ═══════════════════ CONTACT ═══════════════════ */
     #contact {
       background: var(--navy);
       position: relative;
@@ -765,231 +942,283 @@
     #contact::before {
       content: '';
       position: absolute;
-      bottom: -60px; right: -60px;
-      width: 320px; height: 320px;
+      bottom: -80px; right: -80px;
+      width: 350px; height: 350px;
       background: var(--red);
-      opacity: 0.07;
-      border-radius: 50%;
-    }
-    #contact::after {
-      content: '';
-      position: absolute;
-      top: -80px; left: 40%;
-      width: 200px; height: 200px;
-      background: var(--red);
-      opacity: 0.04;
+      opacity: 0.06;
       border-radius: 50%;
     }
 
     .contact-inner {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1.2fr;
       gap: 5rem;
       align-items: start;
       position: relative;
       z-index: 1;
     }
 
+    .contact-text .tag { background: var(--red); }
+
     .contact-text h2 {
       font-size: clamp(2.5rem, 4vw, 3.5rem);
       font-weight: 900;
       color: #fff;
-      line-height: 1;
-      margin-bottom: 1rem;
+      line-height: 1.05;
+      margin-bottom: 1.25rem;
       letter-spacing: -1px;
     }
-    .contact-text > p {
+
+    .contact-text p {
       color: rgba(255,255,255,0.6);
-      font-size: 0.95rem;
-      line-height: 1.75;
+      font-size: 0.97rem;
+      line-height: 1.8;
       margin-bottom: 2rem;
     }
 
     .contact-person {
-      font-size: 1.3rem;
-      font-weight: 800;
+      font-size: 1rem;
+      font-weight: 700;
       color: #fff;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 1.25rem;
     }
 
-    .contact-links { display: flex; flex-direction: column; gap: 1rem; }
+    .contact-links { display: flex; flex-direction: column; gap: 0.85rem; }
 
     .contact-link {
       display: flex;
       align-items: center;
       gap: 1rem;
-      color: rgba(255,255,255,0.8);
-      font-size: 0.95rem;
+      color: rgba(255,255,255,0.75);
       text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
       transition: color 0.2s;
     }
     .contact-link:hover { color: #fff; }
 
     .ci {
-      width: 44px; height: 44px;
-      background: var(--red);
-      border-radius: 6px;
+      width: 38px; height: 38px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    .ci svg { width: 20px; height: 20px; }
+    .ci svg { width: 18px; height: 18px; }
 
-    /* Contact form */
+    /* Form */
     .contact-form {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: #fff;
+      border-radius: 12px;
       padding: 2.5rem;
-      border-radius: 8px;
     }
+
     .contact-form h3 {
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--navy);
       margin-bottom: 1.75rem;
     }
 
-    .fg { margin-bottom: 1.25rem; }
-    .fg label {
-      display: block;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: rgba(255,255,255,0.6);
-      margin-bottom: 0.4rem;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+    .fg-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
+
+    .fg {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .fg label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--navy);
+      letter-spacing: 0.3px;
+    }
+
     .fg input, .fg textarea {
-      width: 100%;
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.15);
-      color: #fff;
       padding: 11px 14px;
-      border-radius: 4px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
       font-size: 0.9rem;
       font-family: inherit;
+      color: var(--text);
+      background: var(--off-white);
+      transition: border-color 0.2s, background 0.2s;
       outline: none;
-      transition: border-color 0.2s;
     }
-    .fg input:focus, .fg textarea:focus { border-color: var(--red); }
-    .fg input::placeholder, .fg textarea::placeholder { color: rgba(255,255,255,0.25); }
-    .fg textarea { resize: vertical; min-height: 110px; }
 
-    .fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .fg input:focus, .fg textarea:focus {
+      border-color: var(--navy);
+      background: #fff;
+    }
+
+    .fg textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
 
     .btn-submit {
       width: 100%;
+      padding: 13px;
       background: var(--red);
       color: #fff;
       border: none;
-      padding: 14px;
-      border-radius: 4px;
-      font-size: 0.9rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
       font-weight: 700;
-      cursor: pointer;
       font-family: inherit;
+      cursor: pointer;
       transition: background 0.2s, transform 0.2s;
       letter-spacing: 0.3px;
     }
     .btn-submit:hover { background: var(--red-dark); transform: translateY(-1px); }
 
-    /* ──────────────── FOOTER ──────────────── */
-    footer {
-      background: #050f1f;
-      color: rgba(255,255,255,0.45);
-      padding: 2.5rem 6%;
+    /* ═══════════════════ PARENT COMPANY STRIP ═══════════════════ */
+    #parent {
+      background: var(--light);
+      padding: 28px 6%;
+      text-align: center;
+      border-top: 1px solid var(--border);
     }
 
-    .footer-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .footer-logo-text {
-      font-size: 1.15rem;
-      font-weight: 900;
-      color: #fff;
-    }
-    .footer-logo-text span { color: var(--red); }
-
-    .footer-links {
-      display: flex;
-      gap: 1.5rem;
-      list-style: none;
-      flex-wrap: wrap;
-    }
-    .footer-links a {
-      color: rgba(255,255,255,0.5);
-      text-decoration: none;
+    #parent p {
       font-size: 0.85rem;
+      color: var(--gray);
+    }
+
+    #parent a {
+      color: var(--navy);
+      font-weight: 700;
+      text-decoration: none;
+      border-bottom: 1.5px solid var(--red);
       transition: color 0.2s;
     }
-    .footer-links a:hover { color: #fff; }
+    #parent a:hover { color: var(--red); }
+
+    /* ═══════════════════ FOOTER ═══════════════════ */
+    footer {
+      background: var(--navy-dark);
+      color: rgba(255,255,255,0.45);
+      padding: 3rem 6% 2.5rem;
+    }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .footer-brand img {
+      height: 38px;
+      width: auto;
+      opacity: 0.85;
+      margin-bottom: 1rem;
+      filter: brightness(0) invert(1);
+    }
+
+    .footer-brand p {
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.4);
+      max-width: 280px;
+    }
+
+    .footer-col h5 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .footer-col ul a {
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.2s;
+    }
+    .footer-col ul a:hover { color: #fff; }
 
     .footer-bottom {
       display: flex;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 0.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid rgba(255,255,255,0.07);
       font-size: 0.8rem;
     }
 
     .footer-bottom a { color: var(--red); text-decoration: none; }
 
-    /* ──────────────── FADE-IN ANIMATION ──────────────── */
+    /* ═══════════════════ FADE-IN ═══════════════════ */
     .fade-item {
       opacity: 0;
       transform: translateY(22px);
       transition: opacity 0.55s ease, transform 0.55s ease;
     }
-    .fade-item.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .fade-item.visible { opacity: 1; transform: translateY(0); }
     .fade-item:nth-child(2) { transition-delay: 0.08s; }
     .fade-item:nth-child(3) { transition-delay: 0.16s; }
     .fade-item:nth-child(4) { transition-delay: 0.08s; }
     .fade-item:nth-child(5) { transition-delay: 0.16s; }
     .fade-item:nth-child(6) { transition-delay: 0.24s; }
 
-    /* ──────────────── RESPONSIVE ──────────────── */
+    /* ═══════════════════ RESPONSIVE ═══════════════════ */
+    @media (max-width: 1100px) {
+      .team-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
     @media (max-width: 960px) {
       .about-inner,
-      .vm-grid,
       .ind-inner,
       .case-inner,
-      .contact-inner {
-        grid-template-columns: 1fr;
-        gap: 3rem;
-      }
+      .contact-inner { grid-template-columns: 1fr; gap: 3rem; }
+      .vm-grid { grid-template-columns: 1fr 1fr; }
       .services-grid { grid-template-columns: repeat(2, 1fr); }
       .tech-grid { grid-template-columns: 1fr; }
       .str-grid { grid-template-columns: 1fr; }
       .team-grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-top { grid-template-columns: 1fr 1fr; }
+      .footer-brand { grid-column: span 2; }
       .nav-links { display: none; }
       .hamburger { display: flex; }
+      .about-accent { display: none; }
     }
 
     @media (max-width: 600px) {
       section { padding: 70px 5%; }
-      .services-grid { grid-template-columns: 1fr; }
-      .about-stats { grid-template-columns: 1fr 1fr; }
+      .services-grid, .vm-grid { grid-template-columns: 1fr; }
       .fg-row { grid-template-columns: 1fr; }
-      .hero-title { font-size: 2.75rem; }
+      .hero-title { font-size: 2.4rem; }
+      .footer-top { grid-template-columns: 1fr; }
+      .footer-brand { grid-column: span 1; }
+      .about-stats-row { grid-template-columns: 1fr 1fr; }
+      .ind-visual { grid-template-columns: 1fr; }
+      .ind-vis-card.full { grid-column: span 1; }
     }
   </style>
 </head>
 <body>
 
 <!-- ═══════════════════ NAVBAR ═══════════════════ -->
-<nav>
+<nav id="mainNav">
   <a href="#hero" class="nav-logo">
     <img src="esteem-logo.png" alt="Esteem Operation &amp; Maintenance" />
   </a>
@@ -1020,73 +1249,121 @@
   </button>
 </nav>
 
-<!-- ═══════════════════ HERO ═══════════════════ -->
+<!-- ═══════════════════ HERO SLIDER ═══════════════════ -->
 <section id="hero">
-  <div class="hero-bg-shapes">
-    <div class="hero-panel"></div>
-    <div class="hero-stripe-red"></div>
-    <div class="hero-stripe-navy"></div>
-    <div class="hero-grid"></div>
+  <div class="slider-track">
+    <div class="slide slide-1 active"></div>
+    <div class="slide slide-2"></div>
+    <div class="slide slide-3"></div>
   </div>
 
   <div class="hero-content">
     <div class="hero-badge">Operation &amp; Maintenance Specialist</div>
     <h1 class="hero-title">
-      Esteem<br>
-      O&amp;M<br>
-      <span class="accent">Sdn Bhd</span>
+      Powering Sustainable<br>
+      Hydroelectric<br>
+      <span class="accent">Operations</span>
     </h1>
-    <p class="hero-sub">Hydroelectric Power Plant Specialists</p>
+    <p class="hero-sub">Esteem Operation &amp; Maintenance (EOM) Sdn Bhd</p>
     <p class="hero-desc">
-      We want to make a positive <strong>impact</strong> on the world of renewable energy.
-      EOM delivers expert O&amp;M solutions ensuring optimal efficiency and longevity of hydropower assets.
+      Delivering expert O&amp;M solutions for hydroelectric power plants — ensuring optimal efficiency,
+      reliability, and longevity of hydropower assets across Malaysia.
     </p>
     <div class="hero-btns">
-      <a href="#services" class="btn btn-red">Our Services →</a>
-      <a href="#contact" class="btn btn-ghost">Work With Us</a>
+      <a href="#services" class="btn btn-red">Explore Our Services</a>
+      <a href="#contact" class="btn btn-ghost">Speak With Us</a>
     </div>
   </div>
 
-  <div class="hero-scroll">
-    <span class="scroll-line"></span>
-    Scroll to explore
+  <div class="slider-dots">
+    <button class="dot active" data-slide="0" aria-label="Slide 1"></button>
+    <button class="dot" data-slide="1" aria-label="Slide 2"></button>
+    <button class="dot" data-slide="2" aria-label="Slide 3"></button>
+  </div>
+
+  <div class="slide-counter">
+    <span id="slideNum">01</span> / 03
   </div>
 </section>
 
 <!-- ═══════════════════ ABOUT ═══════════════════ -->
 <section id="about">
-  <div class="about-slash"></div>
   <div class="about-inner">
     <div class="about-text">
-      <div class="tag">Introduction</div>
+      <div class="tag">Who We Are</div>
       <h2 class="section-title">
-        Esteem Operation &amp; Maintenance<br>
-        <span class="accent">(EOM) Sdn Bhd</span>
+        Esteem Operation &amp;<br>
+        Maintenance <span class="accent">(EOM)</span>
       </h2>
+      <div class="divider"></div>
       <p class="section-lead">
         EOM focuses on providing specialized O&amp;M services for hydroelectric power plants.
         Established by professionals with vast experience in hydroelectric power and renewable energy,
-        with a proven track record from Global Elite O&amp;M, we bring industry best practices to every engagement.
+        with a proven track record from Global Elite O&amp;M.
       </p>
+      <div class="about-features">
+        <div class="about-feat">
+          <div class="feat-dot"></div>
+          <span class="feat-text">Industry best practices applied to every engagement</span>
+        </div>
+        <div class="about-feat">
+          <div class="feat-dot"></div>
+          <span class="feat-text">Long-term partnerships built on trust, reliability, and mutual success</span>
+        </div>
+        <div class="about-feat">
+          <div class="feat-dot"></div>
+          <span class="feat-text">Continuous improvement to meet evolving client needs</span>
+        </div>
+        <div class="about-feat">
+          <div class="feat-dot"></div>
+          <span class="feat-text">High standards of professionalism and integrity in every engagement</span>
+        </div>
+      </div>
       <a href="#contact" class="btn btn-red">Partner With Us →</a>
     </div>
 
-    <div class="about-stats">
-      <div class="stat-box fade-item">
-        <div class="stat-num">65%</div>
-        <div class="stat-lbl">Reduction in Downtime</div>
+    <div class="about-visual">
+      <div class="about-img-wrap">
+        <div class="about-img-bg">
+          <!-- Hydro turbine SVG illustration -->
+          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" opacity="0.5">
+            <circle cx="100" cy="100" r="70" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+            <circle cx="100" cy="100" r="50" stroke="#C8102E" stroke-width="2" stroke-dasharray="6 4"/>
+            <circle cx="100" cy="100" r="20" fill="rgba(200,16,46,0.3)" stroke="#C8102E" stroke-width="2"/>
+            <path d="M100 30 Q120 60 100 80" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M100 170 Q80 140 100 120" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M30 100 Q60 80 80 100" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M170 100 Q140 120 120 100" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+            <path d="M147 53 Q140 85 120 88" stroke="rgba(255,255,255,0.25)" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M53 147 Q60 115 80 112" stroke="rgba(255,255,255,0.25)" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M53 53 Q80 60 88 80" stroke="rgba(255,255,255,0.25)" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M147 147 Q120 140 112 120" stroke="rgba(255,255,255,0.25)" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
       </div>
-      <div class="stat-box fade-item">
-        <div class="stat-num">96%</div>
-        <div class="stat-lbl">Equipment Availability</div>
+
+      <div class="about-accent">
+        <div class="big">6+</div>
+        <div class="label">Years of<br>Hydro Excellence</div>
       </div>
-      <div class="stat-box fade-item">
-        <div class="stat-num">90%</div>
-        <div class="stat-lbl">Stock Availability</div>
-      </div>
-      <div class="stat-box fade-item">
-        <div class="stat-num">3+</div>
-        <div class="stat-lbl">Industries Served</div>
+
+      <div class="about-stats-row">
+        <div class="stat-item fade-item">
+          <div class="stat-num">65%</div>
+          <div class="stat-lbl">Reduction in Downtime</div>
+        </div>
+        <div class="stat-item fade-item">
+          <div class="stat-num">96%</div>
+          <div class="stat-lbl">Equipment Availability</div>
+        </div>
+        <div class="stat-item fade-item">
+          <div class="stat-num">90%</div>
+          <div class="stat-lbl">Stock Availability</div>
+        </div>
+        <div class="stat-item fade-item">
+          <div class="stat-num">3+</div>
+          <div class="stat-lbl">Industries Served</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1097,25 +1374,30 @@
   <div class="centered">
     <div class="tag">Our Foundation</div>
     <h2 class="section-title">Vision &amp; Mission</h2>
+    <div class="divider"></div>
+    <p class="section-lead">
+      Guided by a clear vision and strong mission, we strive to be the most trusted hydroelectric O&amp;M partner in the region.
+    </p>
   </div>
   <div class="vm-grid">
     <div class="vm-card v fade-item">
-      <div class="vm-icon-wrap">
-        <div class="sq" style="background:var(--navy);opacity:0.8;"></div>
-        <div class="sq" style="background:var(--red);opacity:0.4;"></div>
-        <div class="sq" style="background:var(--navy);opacity:0.4;"></div>
-        <div class="sq" style="background:var(--navy);opacity:0.7;"></div>
+      <div class="vm-icon navy">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="13" cy="11" r="7" stroke="#12213A" stroke-width="2"/>
+          <path d="M13 4V2M13 20v2M6 11H4M22 11h-2" stroke="#12213A" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="13" cy="11" r="2.5" fill="#12213A"/>
+        </svg>
       </div>
       <h3>Vision</h3>
-      <p>To be a leading provider of hydroelectric operation and maintenance solutions, supporting sustainable and efficient power generation.</p>
+      <p>To be a leading provider of hydroelectric operation and maintenance solutions, supporting sustainable and efficient power generation across the region.</p>
     </div>
 
     <div class="vm-card m fade-item">
-      <div class="vm-icon-wrap">
-        <div class="sq" style="background:var(--red);border-radius:50%;"></div>
-        <div class="sq" style="background:var(--navy);opacity:0.8;"></div>
-        <div class="sq" style="background:var(--navy);opacity:0.4;"></div>
-        <div class="sq" style="background:var(--red);opacity:0.3;border-radius:2px;"></div>
+      <div class="vm-icon red">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13 3L4 8v10l9 5 9-5V8L13 3z" stroke="#C8102E" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="13" cy="13" r="3" fill="#C8102E"/>
+        </svg>
       </div>
       <h3>Mission</h3>
       <ul>
@@ -1133,16 +1415,18 @@
   <div class="centered">
     <div class="tag">Core Business</div>
     <h2 class="section-title">Our Services</h2>
+    <div class="divider"></div>
     <p class="section-lead">
-      With extensive expertise in hydroelectric power plant operations, we offer specialized O&amp;M services ensuring efficiency, reliability, and longevity of hydropower assets.
+      With extensive expertise in hydroelectric power plant operations, we offer specialized O&amp;M services
+      ensuring efficiency, reliability, and longevity of hydropower assets.
     </p>
   </div>
 
   <div class="services-grid">
-
     <!-- 1 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#12213A 0%,#1B3058 100%);">
+        <div class="svc-cat">Maintenance</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="32" cy="32" r="18" stroke="#C8102E" stroke-width="2.5"/>
           <path d="M32 14v4M32 46v4M14 32h4M46 32h4" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
@@ -1150,8 +1434,8 @@
           <path d="M24 24l5 5M40 40l-5-5M40 24l-5 5M24 40l5-5" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </div>
-      <div class="svc-label">Routine &amp; Preventive Maintenance</div>
       <div class="svc-body">
+        <h4>Routine &amp; Preventive Maintenance</h4>
         <p>Regular servicing to prevent breakdowns and optimize performance. Scheduled inspections and proactive maintenance to extend asset life.</p>
       </div>
     </div>
@@ -1159,6 +1443,7 @@
     <!-- 2 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#1B3058 0%,#2a1f3d 100%);">
+        <div class="svc-cat">Corrective</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="14" y="22" width="36" height="28" rx="3" stroke="white" stroke-width="2.2"/>
           <path d="M22 22V18a10 10 0 0 1 20 0v4" stroke="#C8102E" stroke-width="2.5" stroke-linecap="round"/>
@@ -1166,8 +1451,8 @@
           <path d="M32 41v5" stroke="#C8102E" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
       </div>
-      <div class="svc-label">Corrective Maintenance &amp; Troubleshooting</div>
       <div class="svc-body">
+        <h4>Corrective Maintenance &amp; Troubleshooting</h4>
         <p>Fast and effective solutions to technical failures. Expert diagnosis and repair to restore plant operations quickly and reliably.</p>
       </div>
     </div>
@@ -1175,6 +1460,7 @@
     <!-- 3 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#12213A 0%,#0f1e35 100%);">
+        <div class="svc-cat">Monitoring</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="10" y="38" width="8" height="16" rx="2" fill="#C8102E"/>
           <rect x="22" y="28" width="8" height="26" rx="2" fill="white" opacity="0.6"/>
@@ -1183,8 +1469,8 @@
           <path d="M12 30L24 22L36 14L48 8" stroke="#C8102E" stroke-width="2" stroke-linecap="round" stroke-dasharray="3 3"/>
         </svg>
       </div>
-      <div class="svc-label">Performance Monitoring &amp; Optimization</div>
       <div class="svc-body">
+        <h4>Performance Monitoring &amp; Optimization</h4>
         <p>Utilizing advanced tools and analytics to enhance plant efficiency. Data-driven insights to maximize generation output.</p>
       </div>
     </div>
@@ -1192,14 +1478,15 @@
     <!-- 4 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#1B1030 0%,#12213A 100%);">
+        <div class="svc-cat">Emergency</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M32 12L12 22v20l20 10 20-10V22L32 12z" stroke="#C8102E" stroke-width="2.2" stroke-linejoin="round"/>
           <path d="M32 12v30M12 22l20 10 20-10" stroke="white" stroke-width="2" stroke-linejoin="round" opacity="0.5"/>
           <circle cx="32" cy="32" r="5" fill="#C8102E"/>
         </svg>
       </div>
-      <div class="svc-label">Emergency Response &amp; Breakdown Support</div>
       <div class="svc-body">
+        <h4>Emergency Response &amp; Breakdown Support</h4>
         <p>Rapid assistance to minimize downtime and operational disruptions. 24/7 emergency response for critical situations.</p>
       </div>
     </div>
@@ -1207,6 +1494,7 @@
     <!-- 5 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#12213A 0%,#1B3058 100%);">
+        <div class="svc-cat">Supply Chain</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="12" y="18" width="40" height="28" rx="3" stroke="white" stroke-width="2.2"/>
           <path d="M20 18V14h24v4" stroke="#C8102E" stroke-width="2.2" stroke-linecap="round"/>
@@ -1215,8 +1503,8 @@
           <path d="M45 46h6M48 43v6" stroke="white" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
-      <div class="svc-label">Spare Parts Management &amp; Procurement</div>
       <div class="svc-body">
+        <h4>Spare Parts Management &amp; Procurement</h4>
         <p>Ensuring a seamless supply chain for critical plant components. Strategic inventory management to prevent costly delays.</p>
       </div>
     </div>
@@ -1224,6 +1512,7 @@
     <!-- 6 -->
     <div class="svc-card fade-item">
       <div class="svc-thumb" style="background:linear-gradient(135deg,#12213A 0%,#1a3a5c 100%);">
+        <div class="svc-cat">Training</div>
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M10 46L32 14l22 32H10z" stroke="white" stroke-width="2.2" stroke-linejoin="round" opacity="0.5"/>
           <circle cx="32" cy="28" r="8" fill="#C8102E"/>
@@ -1231,12 +1520,11 @@
           <path d="M18 46h28" stroke="#C8102E" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
       </div>
-      <div class="svc-label">Training &amp; Capacity Building</div>
       <div class="svc-body">
+        <h4>Training &amp; Capacity Building</h4>
         <p>Technical training to enhance in-house maintenance capabilities. Upskilling teams for sustainable, long-term plant operations.</p>
       </div>
     </div>
-
   </div>
 </section>
 
@@ -1245,6 +1533,7 @@
   <div class="centered">
     <div class="tag">Additional Services</div>
     <h2 class="section-title">Technical Support &amp; Consultation</h2>
+    <div class="divider"></div>
     <p class="section-lead">
       Leveraging expertise from Global Elite O&amp;M, we offer comprehensive technical consulting and support services.
     </p>
@@ -1307,27 +1596,43 @@
 <!-- ═══════════════════ OUR STRENGTHS ═══════════════════ -->
 <section id="strengths">
   <div class="centered">
-    <div class="tag">Why Choose EOM</div>
-    <h2 class="section-title">Our Strengths</h2>
-    <p class="section-lead">What sets us apart in delivering world-class hydropower O&amp;M services.</p>
+    <div class="tag-outline" style="color:#fff;border-bottom-color:var(--red);">Why Choose EOM</div>
+    <h2 class="section-title light">Our Strengths</h2>
+    <div class="divider" style="margin-inline:auto;"></div>
+    <p class="section-lead light">What sets us apart in delivering world-class hydropower O&amp;M services.</p>
   </div>
 
   <div class="str-grid">
     <div class="str-card fade-item">
       <div class="str-num">01</div>
-      <div class="str-arrow">→</div>
+      <div class="str-icon">
+        <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="11" cy="8" r="4" stroke="white" stroke-width="1.8"/>
+          <path d="M3 19c0-4 3.6-7 8-7s8 3 8 7" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
       <h3>Experienced Leadership &amp; Expertise</h3>
       <p>EOM is established by professionals with vast experience in hydroelectric power and renewable energy. With a proven track record from Global Elite O&amp;M, we bring industry best practices to every engagement.</p>
     </div>
     <div class="str-card fade-item">
       <div class="str-num">02</div>
-      <div class="str-arrow">→</div>
+      <div class="str-icon">
+        <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 2L3 7v6c0 4 3.5 7.5 8 9 4.5-1.5 8-5 8-9V7L11 2z" stroke="white" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M7 11l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h3>Commitment to Quality &amp; Reliability</h3>
       <p>We prioritize quality control and reliability, ensuring every service adheres to international best practices and enhances the operational lifespan of hydropower plants.</p>
     </div>
     <div class="str-card fade-item">
       <div class="str-num">03</div>
-      <div class="str-arrow">→</div>
+      <div class="str-icon">
+        <svg viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 2C6 2 2 6 2 11s4 9 9 9 9-4 9-9-4-9-9-9z" stroke="white" stroke-width="1.8"/>
+          <path d="M7 11l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
       <h3>Customer-Centric Approach</h3>
       <p>Understanding our clients' unique requirements, we customize solutions that align with operational needs, offering cost-effective and efficient O&amp;M strategies tailored to each plant.</p>
     </div>
@@ -1338,51 +1643,67 @@
 <section id="industries">
   <div class="ind-inner">
     <div>
-      <div class="tag">About Us</div>
-      <h2 class="section-title">Industries<br>We Serve</h2>
+      <div class="tag">Industries</div>
+      <h2 class="section-title">Industries<br>We <span class="accent">Serve</span></h2>
+      <div class="divider"></div>
       <p class="section-lead">EOM delivers specialized expertise across key sectors in the energy and infrastructure landscape.</p>
       <ul class="ind-list">
-        <li class="ind-item">
-          <span class="ind-dot"></span>
+        <li class="ind-item fade-item">
+          <div class="ind-icon">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 16C4 16 8 8 10 8C12 8 16 16 16 16" stroke="#12213A" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="10" cy="8" r="3" fill="#C8102E"/>
+            </svg>
+          </div>
           Renewable Energy &amp; Hydropower
         </li>
-        <li class="ind-item">
-          <span class="ind-dot"></span>
+        <li class="ind-item fade-item">
+          <div class="ind-icon">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 2l-4 9h8L10 2zM10 11v7" stroke="#12213A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 18h8" stroke="#C8102E" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
           Electrical &amp; Power Generation
         </li>
-        <li class="ind-item">
-          <span class="ind-dot"></span>
+        <li class="ind-item fade-item">
+          <div class="ind-icon">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="10" width="16" height="8" rx="1.5" stroke="#12213A" stroke-width="1.8"/>
+              <path d="M4 10V7l6-5 6 5v3" stroke="#C8102E" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+          </div>
           Infrastructure Development
         </li>
       </ul>
     </div>
 
     <div class="ind-visual">
-      <div class="ind-vis-card">
+      <div class="ind-vis-card fade-item">
         <div class="ic">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M4 28C4 28 10 16 18 16C26 16 32 28 32 28" stroke="#C8102E" stroke-width="2" stroke-linecap="round"/>
-            <path d="M4 22C4 22 10 10 18 10C26 10 32 22 32 22" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M4 22C4 22 10 10 18 10C26 10 32 22 32 22" stroke="#12213A" stroke-width="1.5" stroke-linecap="round"/>
             <circle cx="18" cy="16" r="4" fill="#C8102E"/>
           </svg>
         </div>
         <p>Renewable Energy &amp; Hydropower</p>
       </div>
-      <div class="ind-vis-card">
+      <div class="ind-vis-card fade-item">
         <div class="ic">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 4l-6 14h12L18 4zM18 18v14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 4l-6 14h12L18 4zM18 18v14" stroke="#12213A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M10 28h16" stroke="#C8102E" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
         </div>
         <p>Electrical &amp; Power Generation</p>
       </div>
-      <div class="ind-vis-card full">
+      <div class="ind-vis-card full fade-item">
         <div class="ic">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="20" width="28" height="12" rx="2" stroke="white" stroke-width="2"/>
+            <rect x="4" y="20" width="28" height="12" rx="2" stroke="#12213A" stroke-width="2"/>
             <path d="M8 20V14l10-8 10 8v6" stroke="#C8102E" stroke-width="2" stroke-linejoin="round"/>
-            <rect x="14" y="24" width="8" height="8" rx="1" fill="rgba(255,255,255,0.2)"/>
+            <rect x="14" y="24" width="8" height="8" rx="1" fill="rgba(18,33,58,0.1)"/>
           </svg>
         </div>
         <p>Infrastructure Development</p>
@@ -1394,10 +1715,12 @@
 <!-- ═══════════════════ TEAM ═══════════════════ -->
 <section id="team">
   <div class="centered">
-    <div class="tag">About Us</div>
+    <div class="tag">Our People</div>
     <h2 class="section-title">The Team</h2>
+    <div class="divider"></div>
     <p class="section-lead">
-      The EOM core team comprises experienced hydro specialists, engineers, and managers dedicated to efficient, reliable, and sustainable plant operations.
+      The EOM core team comprises experienced hydro specialists, engineers, and managers dedicated to
+      efficient, reliable, and sustainable plant operations.
     </p>
   </div>
 
@@ -1411,7 +1734,6 @@
         <p>CEO</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#1a2f50,#12213A);">
         <div class="team-initials">NH</div>
@@ -1421,7 +1743,6 @@
         <p>Director of Operation</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#12213A,#1B3058);">
         <div class="team-initials">AJ</div>
@@ -1431,7 +1752,6 @@
         <p>Plant Manager</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#1B3058,#0f1e35);">
         <div class="team-initials">MH</div>
@@ -1441,7 +1761,6 @@
         <p>Operation Engineer</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#0f1e35,#1B3058);">
         <div class="team-initials">JK</div>
@@ -1451,7 +1770,6 @@
         <p>Supervisor</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#1B3058,#12213A);">
         <div class="team-initials">AL</div>
@@ -1461,7 +1779,6 @@
         <p>Hydrologist</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#12213A,#1a3a5c);">
         <div class="team-initials">IZ</div>
@@ -1471,7 +1788,6 @@
         <p>Transmission</p>
       </div>
     </div>
-
     <div class="team-card fade-item">
       <div class="team-photo" style="background:linear-gradient(160deg,#1a3a5c,#12213A);">
         <div class="team-initials">TL</div>
@@ -1486,13 +1802,17 @@
 
 <!-- ═══════════════════ CASE PROJECT ═══════════════════ -->
 <section id="case">
-  <div class="tag">Case Project</div>
-  <h2 class="section-title">Project TH — Telekosang Hydro</h2>
+  <div class="case-header">
+    <div class="tag">Case Project</div>
+    <h2 class="section-title">Project TH — <span class="accent">Telekosang Hydro</span></h2>
+    <div class="divider"></div>
+  </div>
 
   <div class="case-inner">
     <div class="case-story">
       <p>
-        When tasked with revamping the Telekosang Hydro O&amp;M team, we took strategic actions that led to a full transformation of operations.
+        When tasked with revamping the Telekosang Hydro O&amp;M team, we took strategic actions
+        that led to a full transformation of operations.
       </p>
       <ul class="case-list">
         <li>Conducted a full operational audit to identify gaps and inefficiencies</li>
@@ -1539,12 +1859,12 @@
   <div class="contact-inner">
     <div class="contact-text">
       <div class="tag">Get In Touch</div>
-      <h2>Work<br>with us!</h2>
+      <h2>Work<br>With Us</h2>
       <p>
-        Partner with EOM and gain a dedicated team of hydro O&amp;M specialists focused on maximizing your plant's performance, reliability, and lifespan.
-        Let's power the future — together.
+        Partner with EOM and gain a dedicated team of hydro O&amp;M specialists focused on maximizing
+        your plant's performance, reliability, and lifespan. Let's power the future — together.
       </p>
-      <div class="contact-person">Ir Ts Zakri Abd Talib</div>
+      <div class="contact-person">Ir Ts Zakri Abd Talib — CEO</div>
       <div class="contact-links">
         <a href="mailto:esteem.onm@gmail.com" class="contact-link">
           <div class="ci">
@@ -1595,17 +1915,42 @@
   </div>
 </section>
 
+<!-- ═══════════════════ PARENT COMPANY ═══════════════════ -->
+<div id="parent">
+  <p>
+    Esteem O&amp;M (EOM) is a subsidiary of
+    <a href="https://www.sarimuhibbahengineering.com" target="_blank" rel="noopener">Sari Muhibbah Engineering Sdn Bhd (SMESB)</a>
+    — a leading renewable energy advisory consultancy in Malaysia.
+  </p>
+</div>
+
 <!-- ═══════════════════ FOOTER ═══════════════════ -->
 <footer>
-  <div class="footer-inner">
-    <img src="esteem-logo.png" alt="Esteem O&amp;M" style="height:38px;width:auto;opacity:0.85;" />
-    <ul class="footer-links">
-      <li><a href="#about">About</a></li>
-      <li><a href="#services">Services</a></li>
-      <li><a href="#team">Team</a></li>
-      <li><a href="#case">Case Study</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <img src="esteem-logo.png" alt="Esteem O&amp;M" />
+      <p>Specialized operation &amp; maintenance services for hydroelectric power plants. Delivering efficiency, reliability, and sustainability.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="#about">About Us</a></li>
+        <li><a href="#vision">Vision &amp; Mission</a></li>
+        <li><a href="#services">Our Services</a></li>
+        <li><a href="#strengths">Our Strengths</a></li>
+        <li><a href="#team">The Team</a></li>
+        <li><a href="#case">Case Study</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h5>Contact</h5>
+      <ul>
+        <li><a href="mailto:esteem.onm@gmail.com">esteem.onm@gmail.com</a></li>
+        <li><a href="tel:+60123196765">+60 12-319 6765</a></li>
+        <li><a href="https://web-production-ef6d7.up.railway.app/login" target="_blank" rel="noopener">Client Portal</a></li>
+        <li><a href="https://www.sarimuhibbahengineering.com" target="_blank" rel="noopener">Parent Company</a></li>
+      </ul>
+    </div>
   </div>
   <div class="footer-bottom">
     <p>© 2025 Esteem Operation &amp; Maintenance (EOM) Sdn Bhd. All rights reserved.</p>
@@ -1614,30 +1959,65 @@
 </footer>
 
 <script>
-  // Navbar scroll effect
-  const nav = document.querySelector('nav');
-  window.addEventListener('scroll', () => {
-    nav.style.background = window.scrollY > 50
-      ? 'rgba(5, 15, 31, 0.99)'
-      : 'rgba(10, 22, 40, 0.97)';
+  /* ── NAVBAR: transparent → solid on scroll ── */
+  const nav = document.getElementById('mainNav');
+  function updateNav() {
+    if (window.scrollY > 60) {
+      nav.classList.add('scrolled');
+    } else {
+      nav.classList.remove('scrolled');
+    }
+  }
+  window.addEventListener('scroll', updateNav, { passive: true });
+  updateNav();
+
+  /* ── HERO SLIDER ── */
+  const slides = document.querySelectorAll('.slide');
+  const dots = document.querySelectorAll('.dot');
+  const slideNumEl = document.getElementById('slideNum');
+  let current = 0;
+  let timer;
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    current = (n + slides.length) % slides.length;
+    slides[current].classList.add('active');
+    dots[current].classList.add('active');
+    slideNumEl.textContent = String(current + 1).padStart(2, '0');
+  }
+
+  function nextSlide() { goTo(current + 1); }
+
+  function startTimer() {
+    clearInterval(timer);
+    timer = setInterval(nextSlide, 5500);
+  }
+
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      goTo(parseInt(dot.dataset.slide));
+      startTimer();
+    });
   });
 
-  // Mobile hamburger (simple toggle)
+  startTimer();
+
+  /* ── MOBILE MENU ── */
   const hamburger = document.getElementById('hamburger');
   const navLinks = document.querySelector('.nav-links');
   hamburger.addEventListener('click', () => {
     const open = navLinks.style.display === 'flex';
     navLinks.style.cssText = open
       ? ''
-      : 'display:flex;flex-direction:column;position:absolute;top:68px;left:0;right:0;background:#0a1628;padding:1.5rem 6%;gap:1rem;border-bottom:2px solid #C8102E;';
+      : 'display:flex;flex-direction:column;position:fixed;top:68px;left:0;right:0;background:rgba(10,22,40,0.98);padding:1.5rem 6%;gap:1.1rem;border-bottom:2px solid #C8102E;z-index:999;backdrop-filter:blur(8px);';
   });
 
-  // Close mobile menu on link click
   document.querySelectorAll('.nav-links a').forEach(a => {
     a.addEventListener('click', () => { navLinks.style.cssText = ''; });
   });
 
-  // Intersection Observer — add .visible class when element enters viewport
+  /* ── SCROLL ANIMATIONS ── */
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (e.isIntersecting) {
