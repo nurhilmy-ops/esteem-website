@@ -1,28 +1,1436 @@
-SSite
-Gate
-solar site screening
-No site loaded
-●Home 1Site 2Sunshine 3Plant size 4Money 5Sensitivity 6Deal-breakers 7Reports
-Screen a solar site before you spend.
-Load a site boundary. Get the plant size, the sunshine yield, the money, and the deal-breakers — in minutes, on numbers you can trace.
-1
-Site boundary
-Drop a KML. Area, shape and terrain computed instantly.
-2
-Sunshine
-Load Solargis or GSA data. See the yield range.
-3
-Plant size
-Floating + ground capacity from your packing rules.
-4
-Money
-Tariff, CAPEX, debt → IRR, DSCR, payback.
-5
-Sensitivity
-Flex CAPEX, OPEX, rate, tariff. Watch IRR move.
-6
-Deal-breakers
-Eight things that kill a project. Rate each.
-Start with a site → Load Bidor demo Open saved file
-Everything runs in your browser. Nothing is uploaded. Screening grade: real numbers may land −30% to +50% of these.
-SiteGate · screening tool · runs entirely in your browser · not a bankable study
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiteGate</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<script>
+/* docx loader fallback chain — first that defines window.docx wins */
+window.__docxReady=new Promise(res=>{
+  function ok(){return !!(window.docx&&window.docx.Document&&window.docx.Packer);}
+  if(ok())return res(true);
+  const urls=[
+    "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js",
+    "https://unpkg.com/docx@8.5.0/build/index.js"
+  ];
+  let i=0;
+  (function tryNext(){
+    if(ok())return res(true);
+    if(i>=urls.length){
+      // last resort: poll a bit in case the first tag is still parsing
+      let n=0;const t=setInterval(()=>{if(ok()){clearInterval(t);res(true);}else if(++n>40){clearInterval(t);res(false);}},150);
+      return;
+    }
+    const sc=document.createElement("script");sc.src=urls[i++];
+    sc.onload=()=>setTimeout(tryNext,50);sc.onerror=tryNext;
+    document.head.appendChild(sc);
+  })();
+});
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap');
+:root{
+  --navy:#0A1F44; --navy-2:#13294B; --navy-3:#1E3A6B;
+  --ink:#0A1F44; --paper:#F7F9FC; --card:#FFFFFF; --line:#E3E9F2;
+  --gold:#F5C518; --gold-2:#E0B30E; --gold-soft:#FFF6D6;
+  --muted:#5B6B85; --good:#1F9D6B; --warn:#E0A60E; --bad:#D94436;
+  --shadow:0 4px 20px rgba(10,31,68,.08); --shadow-lg:0 12px 40px rgba(10,31,68,.14); --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,Arial,sans-serif;background:var(--paper);color:var(--ink);font-size:14.5px;line-height:1.6}
+h1,h2,h3,.display{font-family:'Fraunces',Georgia,serif;letter-spacing:-.01em}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* top bar */
+.topbar{background:var(--navy);color:#fff;display:flex;align-items:center;gap:16px;padding:14px 28px;position:sticky;top:0;z-index:50;box-shadow:0 2px 16px rgba(10,31,68,.18)}
+.brand{font-family:'Fraunces',serif;font-weight:700;font-size:21px;display:flex;align-items:center;gap:10px}
+.brand .mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-2));display:flex;align-items:center;justify-content:center;color:var(--navy);font-weight:800;font-size:17px}
+.brand .gate{color:var(--gold)}
+.brand .sub{font-family:'Inter';font-size:12px;color:#9FB2D4;font-weight:500;margin-left:4px}
+.proj-pill{margin-left:auto;font-size:12.5px;color:#CDD9EE;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);padding:6px 14px;border-radius:20px;font-weight:500}
+
+/* nav */
+.nav{display:flex;gap:4px;padding:0 20px;background:var(--navy-2);position:sticky;top:58px;z-index:40;overflow-x:auto;box-shadow:0 2px 10px rgba(10,31,68,.12)}
+.nav button{background:none;border:none;color:#A9BCDC;font-family:inherit;font-size:13.5px;font-weight:600;padding:14px 16px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:.15s;display:flex;align-items:center;gap:8px}
+.nav button:hover{color:#fff}
+.nav button.active{color:#fff;border-bottom-color:var(--gold)}
+.nav button .n{display:inline-flex;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.12);align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.nav button.active .n{background:var(--gold);color:var(--navy)}
+
+/* layout */
+.wrap{max-width:1080px;margin:0 auto;padding:30px 24px 80px}
+.panel{display:none;animation:fade .35s ease}
+.panel.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* hero */
+.hero{text-align:center;padding:30px 0 10px}
+.hero h1{font-size:38px;color:var(--navy);margin-bottom:10px}
+.hero p{font-size:16px;color:var(--muted);max-width:560px;margin:0 auto}
+.hero .gold{color:var(--gold-2)}
+
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:24px;box-shadow:var(--shadow);margin-bottom:20px}
+.card h2{font-size:21px;color:var(--navy);margin-bottom:6px}
+.card h3{font-size:16px;color:var(--navy);margin:18px 0 8px;font-family:'Inter';font-weight:700}
+.card .lead{color:var(--muted);font-size:14px;margin-bottom:16px}
+.card-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:820px){.card-row{grid-template-columns:1fr}.wrap{padding:22px 14px 70px}}
+
+/* steps grid on home */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px}
+@media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;cursor:pointer;transition:.18s;box-shadow:var(--shadow)}
+.step:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--gold)}
+.step .ic{width:38px;height:38px;border-radius:10px;background:var(--gold-soft);color:var(--gold-2);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;margin-bottom:12px;font-family:'Fraunces'}
+.step h4{font-size:15px;color:var(--navy);margin-bottom:4px}
+.step p{font-size:12.5px;color:var(--muted);line-height:1.5}
+
+/* buttons */
+.btn{font-family:inherit;font-weight:600;font-size:14px;padding:11px 20px;border-radius:10px;border:none;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--navy-3)}
+.btn.gold{background:var(--gold);color:var(--navy)}
+.btn.gold:hover{background:var(--gold-2)}
+.btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--navy)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+
+/* inputs */
+label.fld{display:block;margin-bottom:14px}
+label.fld .lb{display:block;font-size:12.5px;font-weight:600;color:var(--navy);margin-bottom:5px}
+label.fld .hint{font-weight:400;color:var(--muted);font-size:11.5px}
+input[type=text],input[type=number],select,textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);transition:.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(10,31,68,.08)}
+.dropzone{border:2px dashed var(--line);border-radius:12px;padding:34px;text-align:center;cursor:pointer;transition:.18s;background:#fff}
+.dropzone:hover,.dropzone.drag{border-color:var(--gold);background:var(--gold-soft)}
+.dropzone .big{font-size:30px;margin-bottom:8px}
+
+/* stat tiles */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:8px 0}
+.stat{background:linear-gradient(160deg,var(--navy),var(--navy-2));color:#fff;border-radius:12px;padding:18px 16px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;right:-20px;top:-20px;width:70px;height:70px;border-radius:50%;background:rgba(245,197,24,.16)}
+.stat .v{font-size:26px;font-weight:800;font-family:'Fraunces';line-height:1;margin-bottom:4px}
+.stat .v .u{font-size:13px;font-weight:600;color:var(--gold);font-family:'Inter'}
+.stat .k{font-size:11.5px;color:#A9BCDC;font-weight:500}
+.stat.gold{background:linear-gradient(160deg,var(--gold),var(--gold-2));color:var(--navy)}
+.stat.gold .k{color:var(--navy-2)}
+.stat.gold .v .u{color:var(--navy)}
+.stat.gold::after{background:rgba(10,31,68,.12)}
+
+/* sliders */
+.slider-row{display:grid;grid-template-columns:170px 1fr 92px;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.slider-row:last-child{border-bottom:none}
+.slider-row .sl-lb{font-size:13px;font-weight:600;color:var(--navy)}
+.slider-row .sl-lb small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:5px;background:linear-gradient(90deg,var(--navy) 0%,var(--navy) var(--pct,50%),var(--line) var(--pct,50%));outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--gold);border:3px solid #fff;box-shadow:0 2px 6px rgba(10,31,68,.3);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--gold);border:3px solid #fff;cursor:pointer}
+.sl-val{font-size:15px;font-weight:700;color:var(--navy);text-align:right;font-variant-numeric:tabular-nums}
+.sl-val small{font-size:11px;color:var(--muted);font-weight:500}
+
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+th{background:var(--navy);color:#fff;font-weight:600;font-size:12.5px}
+tr:nth-child(even) td{background:#FAFBFD}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.02em}
+.tag.good{background:#E3F6EE;color:var(--good)}
+.tag.warn{background:#FCF3DA;color:var(--warn)}
+.tag.bad{background:#FBE6E3;color:var(--bad)}
+.tag.navy{background:#E8EDF6;color:var(--navy)}
+
+/* RAG pills */
+.rag{display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:13px}
+.rag .dot{width:10px;height:10px;border-radius:50%}
+.rag.G .dot{background:var(--good)}.rag.A .dot{background:var(--warn)}.rag.R .dot{background:var(--bad)}
+
+/* chart container */
+.chartbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0;box-shadow:var(--shadow)}
+.chartbox h4{font-size:14px;color:var(--navy);margin-bottom:4px;font-family:'Inter';font-weight:700}
+.chartbox .cap{font-size:11.5px;color:var(--muted);margin-top:6px}
+
+/* modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(10,31,68,.55);z-index:100;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:480px;width:100%;padding:28px;box-shadow:var(--shadow-lg);animation:pop .25s}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.modal h3{font-size:19px;color:var(--navy);margin-bottom:10px}
+.modal p{color:var(--muted);font-size:14px;margin-bottom:10px}
+.modal .x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1;border:none;background:none}
+
+/* misc */
+.note{font-size:12.5px;color:var(--muted);font-style:italic}
+.pill-tier{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#E8EDF6;color:var(--navy)}
+.divider{height:1px;background:var(--line);margin:18px 0}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty .big{font-size:40px;margin-bottom:10px;opacity:.5}
+.callout{background:var(--gold-soft);border-left:4px solid var(--gold);border-radius:8px;padding:14px 16px;margin:14px 0;font-size:13.5px;color:var(--navy-2)}
+.foot{text-align:center;color:var(--muted);font-size:12px;padding:30px 0 10px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><span class="mk">S</span>Site<span class="gate">Gate</span><span class="sub">solar site screening</span></div>
+  <div class="proj-pill" id="projPill">No site loaded</div>
+</div>
+
+<nav class="nav" id="nav">
+  <button class="active" data-panel="p-home"><span class="n">●</span>Home</button>
+  <button data-panel="p-site"><span class="n">1</span>Site</button>
+  <button data-panel="p-sun"><span class="n">2</span>Sunshine</button>
+  <button data-panel="p-size"><span class="n">3</span>Plant size</button>
+  <button data-panel="p-money"><span class="n">4</span>Money</button>
+  <button data-panel="p-sens"><span class="n">5</span>Sensitivity</button>
+  <button data-panel="p-flags"><span class="n">6</span>Deal-breakers</button>
+  <button data-panel="p-docs"><span class="n">7</span>Reports</button>
+</nav>
+
+<div class="wrap">
+
+  <!-- HOME -->
+  <section class="panel active" id="p-home">
+    <div class="hero">
+      <h1>Screen a solar site <span class="gold">before</span> you spend.</h1>
+      <p>Load a site boundary. Get the plant size, the sunshine yield, the money, and the deal-breakers — in minutes, on numbers you can trace.</p>
+    </div>
+    <div class="steps">
+      <div class="step" data-go="p-site"><div class="ic">1</div><h4>Site boundary</h4><p>Drop a KML. Area, shape and terrain computed instantly.</p></div>
+      <div class="step" data-go="p-sun"><div class="ic">2</div><h4>Sunshine</h4><p>Load Solargis or GSA data. See the yield range.</p></div>
+      <div class="step" data-go="p-size"><div class="ic">3</div><h4>Plant size</h4><p>Floating + ground capacity from your packing rules.</p></div>
+      <div class="step" data-go="p-money"><div class="ic">4</div><h4>Money</h4><p>Tariff, CAPEX, debt → IRR, DSCR, payback.</p></div>
+      <div class="step" data-go="p-sens"><div class="ic">5</div><h4>Sensitivity</h4><p>Flex CAPEX, OPEX, rate, tariff. Watch IRR move.</p></div>
+      <div class="step" data-go="p-flags"><div class="ic">6</div><h4>Deal-breakers</h4><p>Eight things that kill a project. Rate each.</p></div>
+    </div>
+    <div class="card" style="margin-top:22px">
+      <div class="btnrow">
+        <button class="btn primary" data-go="p-site">Start with a site →</button>
+        <button class="btn ghost" id="loadDemo">Load Bidor demo</button>
+        <button class="btn ghost" id="loadSession">Open saved file</button>
+        <input type="file" id="sessionFile" accept=".json,.sitegate.json" hidden>
+      </div>
+      <p class="note" style="margin-top:12px">Everything runs in your browser. Nothing is uploaded. Screening grade: real numbers may land −30% to +50% of these.</p>
+    </div>
+  </section>
+
+  <!-- 1 SITE -->
+  <section class="panel" id="p-site">
+    <div class="card">
+      <h2>Site boundary</h2>
+      <p class="lead">Drop the site's KML file. The area, centre point and shape are measured directly from the polygon.</p>
+      <div class="dropzone" id="kmlDrop">
+        <div class="big">📍</div>
+        <b>Drop a KML file</b> or click to browse
+        <div class="note" style="margin-top:6px">Exported from Google Earth — the site boundary polygon</div>
+        <input type="file" id="kmlFile" accept=".kml" hidden>
+      </div>
+      <div id="siteResult"></div>
+    </div>
+  </section>
+
+  <!-- 2 SUN -->
+  <section class="panel" id="p-sun">
+    <div class="card">
+      <h2>Sunshine data</h2>
+      <p class="lead">Load a Solargis CSV, a Global Solar Atlas spreadsheet, or type the yearly numbers. The app keeps the source tier so you always know how solid the number is.</p>
+      <div class="card-row">
+        <div class="dropzone" id="sunDrop">
+          <div class="big">☀️</div><b>Drop GSA / Solargis file</b> or click
+          <div class="note" style="margin-top:6px">.xlsx, .csv, or PVsyst .sit</div>
+          <input type="file" id="sunFile" accept=".xlsx,.csv,.sit,.txt" hidden>
+        </div>
+        <div>
+          <label class="fld"><span class="lb">Yearly sunshine — GHI <span class="hint">kWh/m² per year</span></span><input type="number" id="ghiIn" placeholder="1724.9"></label>
+          <label class="fld"><span class="lb">Specific yield <span class="hint">kWh per kW of panels per year</span></span><input type="number" id="yldIn" placeholder="1259"></label>
+          <button class="btn ghost" id="sunManual">Use these numbers</button>
+        </div>
+      </div>
+      <div id="sunResult"></div>
+    </div>
+  </section>
+
+  <!-- 3 SIZE -->
+  <section class="panel" id="p-size">
+    <div class="card">
+      <h2>Plant size</h2>
+      <p class="lead">How much solar fits. Slide the packing assumptions; the capacity updates live.</p>
+      <div id="sizeSliders"></div>
+      <div id="sizeResult"></div>
+    </div>
+  </section>
+
+  <!-- 4 MONEY -->
+  <section class="panel" id="p-money">
+    <div class="card">
+      <h2>Money check</h2>
+      <p class="lead">Screening-grade economics. Set the deal, read the returns.</p>
+      <div class="card-row">
+        <div id="moneyInputs"></div>
+        <div id="moneyOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 SENSITIVITY -->
+  <section class="panel" id="p-sens">
+    <div class="card">
+      <h2>Sensitivity studio</h2>
+      <p class="lead">Move one lever at a time and watch equity IRR respond. Built live from the money model — no spreadsheets.</p>
+      <div id="sensControls"></div>
+    </div>
+    <div id="sensCharts"></div>
+  </section>
+
+  <!-- 6 FLAGS -->
+  <section class="panel" id="p-flags">
+    <div class="card">
+      <h2>Deal-breakers</h2>
+      <p class="lead">Eight things that quietly kill solar projects. Rate each from what you know. One red can stop everything.</p>
+      <div id="flagsTbl"></div>
+    </div>
+  </section>
+
+  <!-- 7 DOCS -->
+  <section class="panel" id="p-docs">
+    <div class="card">
+      <h2>Reports</h2>
+      <p class="lead">Generate Word documents from this session's numbers. Anything unverified is marked, never invented.</p>
+      <div class="card-row">
+        <div class="step" style="cursor:default">
+          <div class="ic">📄</div><h4>Technical Proposal</h4>
+          <p>Full LSS-format proposal: scope, plant description, energy &amp; financials, quality plan.</p>
+          <button class="btn gold" id="docTP" style="margin-top:12px;width:100%">Download .docx</button>
+        </div>
+        <div class="step" style="cursor:default">
+          <div class="ic">📋</div><h4>Board Paper</h4>
+          <p>Two-page decision paper: the asset, the money, the unknowns, the recommendation.</p>
+          <button class="btn gold" id="docBoard" style="margin-top:12px;width:100%">Download .docx</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="btnrow">
+        <button class="btn ghost" id="saveSession">💾 Save session file</button>
+        <button class="btn ghost" id="printReport">🖨 Print summary</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">SiteGate · screening tool · runs entirely in your browser · not a bankable study</div>
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal"><button class="x" id="modalX">×</button><h3 id="modalT"></h3><div id="modalB"></div></div></div>
+<script>
+// ---------- pure geometry (node-testable) ----------
+const R_EARTH = 6378137.0;
+function parseKMLCoords(kmlText){
+  const m = kmlText.match(/<coordinates>([\s\S]*?)<\/coordinates>/);
+  if(!m) return null;
+  const pts = m[1].trim().split(/\s+/).map(s=>{
+    const a = s.split(",");
+    return [parseFloat(a[0]), parseFloat(a[1])]; // [lon, lat]
+  }).filter(p=>isFinite(p[0])&&isFinite(p[1]));
+  if(pts.length<4) return null;
+  const nm = kmlText.match(/<Placemark[^>]*>[\s\S]*?<name>([\s\S]*?)<\/name>/);
+  return { coords: pts, name: nm ? nm[1].trim() : "unnamed" };
+}
+function computeGeometry(coords){
+  const n = coords.length;
+  const closed = (coords[0][0]===coords[n-1][0] && coords[0][1]===coords[n-1][1]) ? coords : coords.concat([coords[0]]);
+  const lat0 = closed.slice(0,-1).reduce((a,c)=>a+c[1],0)/(closed.length-1);
+  const lon0 = closed.slice(0,-1).reduce((a,c)=>a+c[0],0)/(closed.length-1);
+  const rad = d=>d*Math.PI/180;
+  const proj = ([lon,lat])=>[ rad(lon-lon0)*R_EARTH*Math.cos(rad(lat0)), rad(lat-lat0)*R_EARTH ];
+  const pts = closed.map(proj);
+  let A=0,cx=0,cy=0,per=0;
+  for(let i=0;i<pts.length-1;i++){
+    const [x1,y1]=pts[i],[x2,y2]=pts[i+1];
+    const cr = x1*y2-x2*y1;
+    A += cr; cx += (x1+x2)*cr; cy += (y1+y2)*cr;
+    per += Math.hypot(x2-x1,y2-y1);
+  }
+  const signedA = A/2;
+  cx/= (6*signedA); cy/=(6*signedA);
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]);
+  return {
+    areaM2: Math.abs(signedA),
+    ha: Math.abs(signedA)/1e4,
+    acres: Math.abs(signedA)/4046.8564224,
+    centroid: [ lat0 + (cy/R_EARTH)*180/Math.PI,
+                lon0 + (cx/(R_EARTH*Math.cos(rad(lat0))))*180/Math.PI ],
+    ew: Math.max(...xs)-Math.min(...xs),
+    ns: Math.max(...ys)-Math.min(...ys),
+    perimeter: per,
+    vertices: closed.length-1,
+    ptsXY: pts
+  };
+}
+function haversineKm(lat1,lon1,lat2,lon2){
+  const r=d=>d*Math.PI/180;
+  const a=Math.sin(r(lat2-lat1)/2)**2 + Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(r(lon2-lon1)/2)**2;
+  return 2*R_EARTH*Math.asin(Math.sqrt(a))/1000;
+}
+function computeEnvelope(ha, waterF, effF, gcrF, gcrG, infraHa, wp, ma, yLow, yHigh){
+  const pd = wp/ma;                       // Wp per m2 of module
+  const water = ha*waterF, land = ha-water;
+  const fpvHa = water*effF, gmHa = Math.max(land-infraHa,0);
+  const fpvMW = fpvHa*1e4*gcrF*pd/1e6;
+  const gmMW  = gmHa*1e4*gcrG*pd/1e6;
+  const tot = fpvMW+gmMW;
+  return { fpvMW, gmMW, tot,
+    genLow: yLow? tot*yLow/1000 : null, genHigh: yHigh? tot*yHigh/1000 : null,
+    dcac: tot/100 };
+}
+// ---------- pure dataset extraction (node-testable) ----------
+// sheets: array of row-matrices (array of arrays). Returns extracted fields + log.
+function extractResourceFromSheets(sheets){
+  const out={lat:null,lon:null,ghi:null,dni:null,dif:null,temp:null,pvout:null,tilt:null,source:null};
+  const log=[];
+  const num=v=>{ if(typeof v==="number")return v;
+    if(typeof v==="string"){const m=v.replace(/,/g,"").match(/-?\d+(\.\d+)?/);return m?parseFloat(m[0]):null;}
+    return null; };
+  const firstNumInRange=(row,lo,hi,skip=0)=>{ let seen=0;
+    for(const c of row){ const n=num(c); if(n!=null && n>=lo && n<=hi){ if(seen++>=skip) return n; } } return null; };
+  let pvCol=null, pvSheet=null;
+  sheets.forEach((mat,si)=>{
+    mat.forEach((rowRaw,ri)=>{
+      const row=rowRaw||[];
+      const joined=row.map(c=>c==null?"":String(c)).join(" | ");
+      if(/global solar atlas/i.test(joined)) out.source="gsa";
+      else if(/solargis/i.test(joined) && !out.source) out.source="solargis";
+      // coordinates: "4.083333°, 101.333333°" (deg-pair anywhere in a coordinates-labelled row, or any °-pair)
+      let m=joined.match(/(-?\d{1,2}\.\d{3,})°\s*,\s*(-?\d{1,3}\.\d{3,})°/);
+      if(m && out.lat==null){ out.lat=+m[1]; out.lon=+m[2]; log.push("coordinates: "+m[1]+", "+m[2]); }
+      // labelled single-value rows (Map_data style: [long name, ACRONYM, value, unit])
+      const tokens=row.map(c=>String(c==null?"":c).trim());
+      const has=t=>tokens.some(x=>x===t);
+      if(has("GHI") && out.ghi==null){ out.ghi=firstNumInRange(row,500,3000); if(out.ghi)log.push("GHI: "+out.ghi); }
+      if(has("DNI") && out.dni==null){ const v=firstNumInRange(row,200,3000); if(v){out.dni=v;log.push("DNI: "+v);} }
+      if(has("DIF") && out.dif==null){ const v=firstNumInRange(row,200,2000); if(v){out.dif=v;log.push("DIF: "+v);} }
+      if(has("TEMP") && out.temp==null){ const v=firstNumInRange(row,-10,45); if(v!=null){out.temp=v;log.push("TEMP: "+v);} }
+      if(/tilt of pv/i.test(joined) && out.tilt==null){ const v=firstNumInRange(row,0,60); if(v!=null){out.tilt=v;log.push("tilt: "+v);} }
+      // PVOUT_specific: remember header column, read at "Yearly" row
+      row.forEach((c,ci)=>{ if(String(c).trim()==="PVOUT_specific"){ pvCol=ci; pvSheet=si; } });
+      if(pvCol!=null && si===pvSheet && /^year/i.test(tokens[0]||"")){
+        const v=num(row[pvCol]); if(v!=null && v>300 && v<2600 && out.pvout==null){ out.pvout=v; log.push("PVOUT (Yearly row): "+v); }
+      }
+    });
+  });
+  // fallback PVOUT: sum 12 monthly values in the PVOUT column
+  if(out.pvout==null && pvCol!=null && pvSheet!=null){
+    let s=0,nmo=0;
+    sheets[pvSheet].forEach(r=>{ const t=String((r||[])[0]||"");
+      if(/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(t)){ const v=num(r[pvCol]); if(v!=null){s+=v;nmo++;} } });
+    if(nmo===12){ out.pvout=Math.round(s*10)/10; log.push("PVOUT (12-month sum): "+out.pvout); }
+  }
+  return {out,log};
+}
+// text datasets: Solargis CSV (#Latitude: ...) and PVsyst .SIT
+function extractResourceFromText(text){
+  const out={lat:null,lon:null,ghi:null,dni:null,dif:null,temp:null,pvout:null,tilt:null,source:null};
+  const log=[];
+  if(/solargis/i.test(text)) out.source="solargis";
+  if(/pvsyst|PVObject_|pvG?Site/i.test(text)) out.source="pvsyst";
+  if(/global solar atlas/i.test(text)) out.source="gsa";
+  const grab=(re,lo,hi,name,key)=>{ const m=text.match(re);
+    if(m){ const v=parseFloat(m[1]); if(v>=lo&&v<=hi){ out[key]=v; log.push(name+": "+v); } } };
+  grab(/lat[a-z]*\s*[=:#]?\s*(-?\d{1,2}\.\d+)/i,-60,60,"latitude","lat");
+  grab(/lon[a-z]*\s*[=:#]?\s*(-?\d{1,3}\.\d+)/i,-180,180,"longitude","lon");
+  // °-pair fallback
+  if(out.lat==null){ const m=text.match(/(-?\d{1,2}\.\d{3,})°\s*,\s*(-?\d{1,3}\.\d{3,})°/);
+    if(m){ out.lat=+m[1]; out.lon=+m[2]; log.push("coordinates: "+m[1]+", "+m[2]); } }
+  grab(/GHI[^0-9\n-]{0,24}(\d{3,4}(?:\.\d+)?)/i,500,3000,"GHI annual","ghi");
+  grab(/DNI[^0-9\n-]{0,24}(\d{3,4}(?:\.\d+)?)/i,200,3000,"DNI annual","dni");
+  grab(/PVOUT[^0-9\n-]{0,28}(\d{3,4}(?:\.\d+)?)/i,300,2600,"PVOUT","pvout");
+  grab(/tilt[^0-9\n-]{0,18}(\d{1,2}(?:\.\d+)?)/i,0,60,"tilt","tilt");
+  // PVsyst .SIT monthly GlobH (kWh/m²/mth) -> annual GHI
+  if(out.ghi==null){
+    const m=text.match(/GlobH[^\n]*\n((?:[^\n]*\n){0,2}[^\n]*)/i);
+    const block = m? m[0] : null;
+    if(block){ const nums=(block.match(/\d{1,3}(?:\.\d+)?/g)||[]).map(Number).filter(v=>v>20&&v<320);
+      if(nums.length>=12){ const s=nums.slice(0,12).reduce((a,b)=>a+b,0);
+        if(s>500&&s<3000){ out.ghi=Math.round(s*10)/10; log.push("GHI (12×GlobH sum): "+out.ghi); } } }
+  }
+  return {out,log};
+}
+// ---------- pure finance: screening money model (Class 5) — node-testable ----------
+function npvAt(cf,r){let s=0;for(let t=0;t<cf.length;t++)s+=cf[t]/Math.pow(1+r,t);return s;}
+function irr(cf){
+  if(!cf.some(v=>v>0)||!cf.some(v=>v<0))return null;
+  let lo=-0.95,hi=3,flo=npvAt(cf,lo),fhi=npvAt(cf,hi);
+  if(flo*fhi>0)return null;
+  for(let k=0;k<200;k++){const mid=(lo+hi)/2,f=npvAt(cf,mid);
+    if(Math.abs(f)<1e-9)return mid;
+    if(flo*f<0){hi=mid;}else{lo=mid;flo=f;}}
+  return (lo+hi)/2;
+}
+function buildFM(i){
+  // i: mwp, yld kWh/kWp, tariffSen, ppa yrs, capexPM RM m/MWp, contPct, opexPct, opexEsc, degr, gearPct, intPct, tenor, hurdle
+  const capex=i.mwp*i.capexPM*1e6*(1+i.contPct/100);
+  const debt=capex*i.gearPct/100, equity=capex-debt, r=i.intPct/100;
+  const ds=(i.tenor>0&&debt>0)?(r>0?debt*r/(1-Math.pow(1+r,-i.tenor)):debt/i.tenor):0;
+  const projCF=[-capex],eqCF=[-equity];
+  let dscrMin=Infinity,dscrSum=0,dscrN=0,energyPV=0,costPV=capex,cum=-equity,payback=null;
+  for(let t=1;t<=i.ppa;t++){
+    const en=i.mwp*1000*i.yld*Math.pow(1-i.degr/100,t-1); // kWh
+    const rev=en*i.tariffSen/100;
+    const opex=capex*i.opexPct/100*Math.pow(1+i.opexEsc/100,t-1);
+    const cfads=rev-opex;
+    projCF.push(cfads);
+    const d=t<=i.tenor?ds:0;
+    eqCF.push(cfads-d);
+    if(d>0){const x=cfads/d;dscrMin=Math.min(dscrMin,x);dscrSum+=x;dscrN++;}
+    energyPV+=en/Math.pow(1+i.hurdle/100,t);
+    costPV+=opex/Math.pow(1+i.hurdle/100,t);
+    cum+=cfads-d;if(payback==null&&cum>=0)payback=t;
+  }
+  return{capex,debt,equity,ds,rev1:i.mwp*1000*i.yld*i.tariffSen/100,
+    projIRR:irr(projCF),eqIRR:irr(eqCF),npvEq:npvAt(eqCF,i.hurdle/100),
+    lcoeSen:energyPV>0?costPV/energyPV*100:null,
+    dscrMin:dscrN?dscrMin:null,dscrAvg:dscrN?dscrSum/dscrN:null,payback,
+    energy1GWh:i.mwp*i.yld/1000};
+}
+// ---------- pure terrain: point-in-polygon + slope from height samples ----------
+function pointInPolygon(lon,lat,coords){ // coords: [[lon,lat],...]
+  let inside=false;
+  for(let a=0,b=coords.length-1;a<coords.length;b=a++){
+    const xi=coords[a][0],yi=coords[a][1],xj=coords[b][0],yj=coords[b][1];
+    if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function slopeStats(samples){ // [{lat,lon,ele}] — pairwise slope, 20–300 m pairs only
+  const pts=(samples||[]).filter(p=>p&&isFinite(p.ele));
+  let maxDeg=0,sum=0,n=0;
+  for(let a=0;a<pts.length;a++)for(let b=a+1;b<pts.length;b++){
+    const dKm=haversineKm(pts[a].lat,pts[a].lon,pts[b].lat,pts[b].lon);
+    if(dKm<0.02||dKm>0.3)continue;
+    const deg=Math.atan(Math.abs(pts[a].ele-pts[b].ele)/(dKm*1000))*180/Math.PI;
+    if(deg>maxDeg)maxDeg=deg;sum+=deg;n++;
+  }
+  return n?{maxDeg,meanDeg:sum/n,pairs:n,points:pts.length}:null;
+}
+function sanityCheck(S, ui){
+  const notes=[];
+  if(S.geo){
+    if(S.geo.ha<1) notes.push("The land is under 1 hectare — smaller than a football field. Utility-scale solar starts around 2 hectares; this boundary is probably a drawing error.");
+    if(S.geo.ha>2000) notes.push("The land is over 2,000 hectares (20 km²) — implausibly large for a single boundary file. Check the shape was drawn at the right zoom level.");
+    const [la,lo]=S.geo.centroid;
+    if(!(la>0.8&&la<7.6&&lo>99&&lo<119.6)) notes.push("The site's centre point is OUTSIDE Malaysia. The Malaysian rules, tenders and checklists in this app do not apply to it.");
+  }
+  if(S.res){
+    if(S.res.ghi && (S.res.ghi<800||S.res.ghi>2600)) notes.push("Yearly sunlight of "+S.res.ghi+" is outside anything found on Earth's surface (deserts peak near 2,500; rainy Europe bottoms near 900). The value is almost certainly a typo or wrong units.");
+    else if(S.res.ghi && (S.res.ghi<1300||S.res.ghi>2000)) notes.push("Yearly sunlight of "+S.res.ghi+" is physically possible somewhere, but not in Malaysia (typical: 1,400–1,900). Re-check the report.");
+    if(S.res.pvout && (S.res.pvout<600||S.res.pvout>2300)) notes.push("Electricity yield of "+S.res.pvout+" kWh per kW per year is outside real-world solar performance anywhere (roughly 700–2,200). Typo or wrong units.");
+    if(S.res.pvout && S.res.ghi && S.res.pvout>S.res.ghi) notes.push("The electricity yield ("+S.res.pvout+") is HIGHER than the sunlight available ("+S.res.ghi+") — a solar panel cannot put out more than the sun puts in. One of the two numbers is wrong.");
+  }
+  if(ui){
+    if(ui.tilt!=null && ui.tilt>30) notes.push("A panel tilt of "+ui.tilt+"° is strange this close to the equator (normal: 5–10°). Possible, but check it is not a typo.");
+    if(ui.wp && (ui.wp<200||ui.wp>900)) notes.push("A panel rating of "+ui.wp+" watts does not match any commercial solar panel (today: roughly 400–700 W).");
+    if(ui.ma && (ui.ma<1||ui.ma>4)) notes.push("A panel size of "+ui.ma+" m² does not match any commercial panel (today: roughly 2–3.2 m²).");
+    if(ui.wp && ui.ma && (ui.wp/ui.ma>280)) notes.push("Your panel would convert sunlight at over "+Math.round(ui.wp/ui.ma/10)+"% efficiency — beyond today's best commercial panels (~23%). The rating and size don't go together.");
+    if(ui.water!=null && ui.water<0.05 && ui.gcrF>0.3) notes.push("You set almost no water on site but still plan floating solar — the floating share of the result is meaningless.");
+  }
+  return notes;
+}
+
+/* ============ terrain & water analysis (pure, node-testable) ============ */
+// Build an NxN sample grid covering the polygon bbox; mark which are inside.
+function buildGrid(coords,N){
+  let minLo=1e9,maxLo=-1e9,minLa=1e9,maxLa=-1e9;
+  coords.forEach(c=>{minLo=Math.min(minLo,c[0]);maxLo=Math.max(maxLo,c[0]);minLa=Math.min(minLa,c[1]);maxLa=Math.max(maxLa,c[1]);});
+  const cells=[];
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const lon=minLo+(maxLo-minLo)*(c+0.5)/N, lat=minLa+(maxLa-minLa)*(r+0.5)/N;
+    cells.push({r,c,lat,lon,inside:pointInPolygon(lon,lat,coords),ele:null});
+  }
+  return {N,minLo,maxLo,minLa,maxLa,cells,
+    // metres per cell (approx, at site latitude)
+    dxM:haversineKm(minLa,minLo,minLa,maxLo)*1000/N,
+    dyM:haversineKm(minLa,minLo,maxLa,minLo)*1000/N};
+}
+// Per-cell slope from a filled elevation grid, using 4-neighbour gradient (Horn-lite).
+function cellSlopes(grid){
+  const {N,cells,dxM,dyM}=grid;
+  const at=(r,c)=>{if(r<0||c<0||r>=N||c>=N)return null;const e=cells[r*N+c].ele;return isFinite(e)?e:null;};
+  cells.forEach(cell=>{
+    if(!isFinite(cell.ele)){cell.slopeDeg=null;return;}
+    const {r,c}=cell;
+    const E=at(r,c+1),W=at(r,c-1),Nn=at(r-1,c),So=at(r+1,c),C=cell.ele;
+    const ddx=(E!=null&&W!=null)?(E-W)/(2*dxM):((E!=null)?(E-C)/dxM:(W!=null)?(C-W)/dxM:0);
+    const ddy=(Nn!=null&&So!=null)?(Nn-So)/(2*dyM):((Nn!=null)?(Nn-C)/dyM:(So!=null)?(C-So)/dyM:0);
+    cell.slopeDeg=Math.atan(Math.hypot(ddx,ddy))*180/Math.PI;
+  });
+  return grid;
+}
+// DEM water proxy: a cell is "water-like" if it's both LOW (bottom quantile of inside elevations)
+// and FLAT (slope below a threshold), then keep only the largest connected low-flat blob.
+function waterProxy(grid,opts){
+  opts=opts||{};
+  const flatMax=opts.flatMax!=null?opts.flatMax:2.0;       // deg
+  const lowQuantile=opts.lowQuantile!=null?opts.lowQuantile:0.45;
+  const {N,cells}=grid;
+  const inside=cells.filter(c=>c.inside&&isFinite(c.ele));
+  if(inside.length<8)return {cells:new Set(),frac:0,reason:"too few samples"};
+  const eles=inside.map(c=>c.ele).sort((a,b)=>a-b);
+  const thr=eles[Math.floor(eles.length*lowQuantile)];
+  const cand=new Set();
+  inside.forEach(c=>{if(c.ele<=thr && (c.slopeDeg==null||c.slopeDeg<=flatMax))cand.add(c.r*N+c.c);});
+  // connected components (4-neigh), keep largest
+  const seen=new Set();let best=new Set();
+  cand.forEach(id=>{
+    if(seen.has(id))return;
+    const comp=new Set(),stack=[id];
+    while(stack.length){const k=stack.pop();if(seen.has(k))continue;seen.add(k);comp.add(k);
+      const r=Math.floor(k/N),c=k%N;
+      [[r+1,c],[r-1,c],[r,c+1],[r,c-1]].forEach(([rr,cc])=>{const nk=rr*N+cc;if(rr>=0&&cc>=0&&rr<N&&cc<N&&cand.has(nk)&&!seen.has(nk))stack.push(nk);});
+    }
+    if(comp.size>best.size)best=comp;
+  });
+  return {cells:best,frac:best.size/inside.length,reason:"DEM proxy (low+flat connected basin)"};
+}
+// Combine into a site profile: counts, fractions, hectare splits.
+function terrainProfile(grid,siteHa,waterCells,steepMax){
+  steepMax=steepMax!=null?steepMax:10;
+  const {N,cells}=grid;
+  const inside=cells.filter(c=>c.inside);
+  const haPerCell=siteHa/(inside.length||1);
+  let steep=0,water=0,flatLand=0,nEle=0;
+  inside.forEach(c=>{
+    if(isFinite(c.ele))nEle++;
+    const isW=waterCells.has(c.r*N+c.c);
+    if(isW){water++;return;}
+    if(c.slopeDeg!=null&&c.slopeDeg>steepMax)steep++;
+    else flatLand++;
+  });
+  return {
+    insideCells:inside.length,haPerCell,
+    waterCells:water, waterHa:water*haPerCell, waterFrac:water/inside.length,
+    steepCells:steep, steepHa:steep*haPerCell, steepFrac:steep/inside.length,
+    landUsableCells:flatLand, landUsableHa:flatLand*haPerCell,
+    coverage:nEle/inside.length
+  };
+}
+
+/* ============ slope (self-contained) ============ */
+function gridInside(coords,n){
+  let minLo=1e9,maxLo=-1e9,minLa=1e9,maxLa=-1e9;
+  coords.forEach(c=>{minLo=Math.min(minLo,c[0]);maxLo=Math.max(maxLo,c[0]);minLa=Math.min(minLa,c[1]);maxLa=Math.max(maxLa,c[1]);});
+  const pts=[];
+  for(let a=0;a<n;a++)for(let b=0;b<n;b++){
+    const lon=minLo+(maxLo-minLo)*(a+0.5)/n, lat=minLa+(maxLa-minLa)*(b+0.5)/n;
+    if(pointInPolygon(lon,lat,coords))pts.push({lat,lon});
+  }
+  return pts;
+}
+async function fetchSlope(geo){
+  // geo.ptsXY isn't lat/lon; rebuild ring from stored rawCoords on S
+  if(!S.rawCoords)return null;
+  const pts=gridInside(S.rawCoords,7).slice(0,90);
+  if(pts.length<6)return null;
+  const url="https://api.opentopodata.org/v1/srtm30m?locations="+pts.map(p=>p.lat.toFixed(6)+","+p.lon.toFixed(6)).join("|");
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+  const rs=await fetch(url,{signal:ctl.signal});clearTimeout(to);
+  const j=await rs.json();
+  if(j.status!=="OK")throw new Error(j.error||j.status);
+  const samples=j.results.map(r=>({lat:r.location.lat,lon:r.location.lng,ele:r.elevation}));
+  return {samples,src:"OpenTopoData SRTM 30 m",stats:slopeStats(samples)};
+}
+
+const DEMO_KML="<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\" xmlns:kml=\"http://www.opengis.net/kml/2.2\" xmlns:atom=\"http://www.w3.org/2005/Atom\">\n<Document id=\"document\">\n\t<name>Bidor</name>\n\t<gx:CascadingStyle kml:id=\"__managed_style_0838E66C763FDD36CFAF_highlight\">\n\t\t<Style>\n\t\t\t<IconStyle>\n\t\t\t\t<scale>1.2</scale>\n\t\t\t\t<Icon>\n\t\t\t\t\t<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>\n\t\t\t\t</Icon>\n\t\t\t\t<hotSpot x=\"64\" y=\"128\" xunits=\"pixels\" yunits=\"insetPixels\"/>\n\t\t\t</IconStyle>\n\t\t\t<LabelStyle>\n\t\t\t</LabelStyle>\n\t\t\t<LineStyle>\n\t\t\t\t<color>ff2dc0fb</color>\n\t\t\t\t<width>3</width>\n\t\t\t</LineStyle>\n\t\t\t<PolyStyle>\n\t\t\t\t<color>40ffffff</color>\n\t\t\t</PolyStyle>\n\t\t\t<BalloonStyle>\n\t\t\t\t<displayMode>hide</displayMode>\n\t\t\t</BalloonStyle>\n\t\t</Style>\n\t</gx:CascadingStyle>\n\t<gx:CascadingStyle kml:id=\"__managed_style_0838E66C763FDD36CFAF_normal\">\n\t\t<Style>\n\t\t\t<IconStyle>\n\t\t\t\t<Icon>\n\t\t\t\t\t<href>https://earth.google.com/earth/document/icon?color=1976d2&amp;id=2000&amp;scale=4</href>\n\t\t\t\t</Icon>\n\t\t\t\t<hotSpot x=\"64\" y=\"128\" xunits=\"pixels\" yunits=\"insetPixels\"/>\n\t\t\t</IconStyle>\n\t\t\t<LabelStyle>\n\t\t\t</LabelStyle>\n\t\t\t<LineStyle>\n\t\t\t\t<color>ff2dc0fb</color>\n\t\t\t\t<width>2</width>\n\t\t\t</LineStyle>\n\t\t\t<PolyStyle>\n\t\t\t\t<color>40ffffff</color>\n\t\t\t</PolyStyle>\n\t\t\t<BalloonStyle>\n\t\t\t\t<displayMode>hide</displayMode>\n\t\t\t</BalloonStyle>\n\t\t</Style>\n\t</gx:CascadingStyle>\n\t<StyleMap id=\"__managed_style_0838E66C763FDD36CFAF\">\n\t\t<Pair>\n\t\t\t<key>normal</key>\n\t\t\t<styleUrl>#__managed_style_0838E66C763FDD36CFAF_normal</styleUrl>\n\t\t</Pair>\n\t\t<Pair>\n\t\t\t<key>highlight</key>\n\t\t\t<styleUrl>#__managed_style_0838E66C763FDD36CFAF_highlight</styleUrl>\n\t\t</Pair>\n\t</StyleMap>\n\t<Placemark id=\"012EC33FBB3FDD36CF88\">\n\t\t<name>Bidor Solar </name>\n\t\t<LookAt>\n\t\t\t<longitude>101.2508704741971</longitude>\n\t\t\t<latitude>4.071129737202885</latitude>\n\t\t\t<altitude>26.44800092741995</altitude>\n\t\t\t<heading>12.46278020997009</heading>\n\t\t\t<tilt>0</tilt>\n\t\t\t<gx:fovy>35</gx:fovy>\n\t\t\t<range>4404.690636934829</range>\n\t\t\t<altitudeMode>absolute</altitudeMode>\n\t\t</LookAt>\n\t\t<styleUrl>#__managed_style_0838E66C763FDD36CFAF</styleUrl>\n\t\t<Polygon>\n\t\t\t<outerBoundaryIs>\n\t\t\t\t<LinearRing>\n\t\t\t\t\t<coordinates>\n\t\t\t\t\t\t101.2455180693545,4.074489885501118,0 101.2451131683172,4.073151136611368,0 101.2442701369855,4.072358784690736,0 101.2444167360284,4.070824952274716,0 101.2436732042788,4.065767923105843,0 101.2542048368948,4.064281721549744,0 101.2576177604217,4.065927748246275,0 101.2566052128045,4.07100554250374,0 101.2479012523798,4.073047491246486,0 101.247916075704,4.074008721035814,0 101.2455180693545,4.074489885501118,0 \n\t\t\t\t\t</coordinates>\n\t\t\t\t</LinearRing>\n\t\t\t</outerBoundaryIs>\n\t\t</Polygon>\n\t</Placemark>\n</Document>\n</kml>\n";
+
+/* ============ background site analyzer (live fetch + NDWI + fallback) ============ */
+// Fetch SRTM elevations for all inside cells in batches; fill grid.cells[].ele
+async function fetchElevations(grid){
+  const inside=grid.cells.filter(c=>c.inside);
+  const BATCH=90;let done=0;
+  for(let i=0;i<inside.length;i+=BATCH){
+    const chunk=inside.slice(i,i+BATCH);
+    const locs=chunk.map(c=>c.lat.toFixed(6)+","+c.lon.toFixed(6)).join("|");
+    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+    const rs=await fetch("https://api.opentopodata.org/v1/srtm30m?locations="+locs,{signal:ctl.signal});
+    clearTimeout(to);
+    const j=await rs.json();
+    if(j.status!=="OK")throw new Error(j.error||j.status);
+    j.results.forEach((res,k)=>{chunk[k].ele=res.elevation;});
+    done+=chunk.length;
+    if(grid.onProgress)grid.onProgress(done,inside.length,"elevation");
+  }
+  return grid;
+}
+// Attempt Sentinel-2 NDWI via a public WMS/tile service that allows CORS.
+// Strategy: sample the ESA WorldCover / Sentinel-2 cloudless NDWI is not directly tile-queryable
+// for a pixel value in-browser without auth. We instead query the open "s2maps" Sentinel-2 cloudless
+// is imagery only. So for an actual water index we use the free, CORS-enabled
+// "https://services.sentinel-hub.com" — which needs auth. Without a key, a true per-pixel NDWI
+// is not reliably available from file://. We therefore TRY one keyless route and otherwise
+// report NDWI as unavailable, falling back to the DEM proxy. We never fabricate an NDWI mask.
+async function tryNDWI(grid){
+  // Honest attempt: ESA WorldCover 10m land-cover via the free terrascope WMS GetFeatureInfo.
+  // Class 80 = "Permanent water bodies". This is a published, CORS-permitting service.
+  // If it fails (CORS/network), return null so caller uses the DEM proxy.
+  const inside=grid.cells.filter(c=>c.inside);
+  const sample=inside.filter((_,i)=>i%2===0); // subsample to limit calls
+  const water=new Set();let ok=0,tried=0;
+  const wmsBase="https://services.terrascope.be/wms/v2";
+  for(const c of sample){
+    tried++;
+    const d=0.00008; // ~9m half-box
+    const bbox=[c.lon-d,c.lat-d,c.lon+d,c.lat+d].join(",");
+    const url=wmsBase+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=WORLDCOVER_2021_MAP"+
+      "&QUERY_LAYERS=WORLDCOVER_2021_MAP&CRS=EPSG:4326&BBOX="+[c.lat-d,c.lon-d,c.lat+d,c.lon+d].join(",")+
+      "&WIDTH=3&HEIGHT=3&I=1&J=1&INFO_FORMAT=application/json&STYLES=";
+    try{
+      const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),8000);
+      const rs=await fetch(url,{signal:ctl.signal});clearTimeout(to);
+      if(!rs.ok)throw 0;
+      const j=await rs.json();ok++;
+      const val=JSON.stringify(j);
+      // WorldCover water class is 80
+      if(/\b80\b/.test(val))water.add(c.r*grid.N+c.c);
+    }catch(e){ /* this cell failed; continue */ }
+    if(grid.onProgress)grid.onProgress(tried,sample.length,"ndwi");
+    if(tried>=6 && ok===0)return null; // service clearly unreachable; bail to proxy fast
+  }
+  if(ok===0)return null;
+  // grow sampled water cells to neighbours we skipped (fill checkerboard) by inheriting from neighbours
+  const N=grid.N,grown=new Set(water);
+  water.forEach(id=>{const r=Math.floor(id/N),c=id%N;
+    [[r,c+1],[r,c-1],[r+1,c],[r-1,c]].forEach(([rr,cc])=>{const nk=rr*N+cc;
+      const cell=grid.cells[nk];if(cell&&cell.inside)grown.add(nk);});});
+  return {cells:grown,frac:grown.size/inside.length,reason:"ESA WorldCover 2021 (10 m, class 80 water)",ok,tried};
+}
+// Full pipeline: returns a profile + masks, runs in background.
+async function analyzeSite(coords,siteHa,N,onProgress){
+  const grid=buildGrid(coords,N);grid.onProgress=onProgress;
+  await fetchElevations(grid);
+  cellSlopes(grid);
+  let water=null,waterSrc="";
+  try{ water=await tryNDWI(grid); }catch(e){ water=null; }
+  if(water&&water.cells.size>0){ waterSrc=water.reason; }
+  else { water=waterProxy(grid,{flatMax:2.0,lowQuantile:0.45}); waterSrc=water.reason; }
+  const profile=terrainProfile(grid,siteHa,water.cells,10);
+  return {grid,waterCells:water.cells,waterSrc,waterFracDetected:water.frac,profile};
+}
+if(typeof module!=="undefined")module.exports={parseKMLCoords,computeGeometry,haversineKm,computeEnvelope,extractResourceFromSheets,extractResourceFromText,npvAt,irr,buildFM,pointInPolygon,slopeStats,buildGrid,cellSlopes,waterProxy,terrainProfile};
+
+/* ============ helpers ============ */
+const $=id=>document.getElementById(id);
+const fmt=(x,d=0)=>(x==null||!isFinite(x))?"—":Number(x).toLocaleString("en-MY",{maximumFractionDigits:d,minimumFractionDigits:d});
+function showModal(t,b){$("modalT").textContent=t;$("modalB").innerHTML=b;$("modalBg").classList.add("show");}
+$("modalX").onclick=()=>$("modalBg").classList.remove("show");
+$("modalBg").onclick=e=>{if(e.target===$("modalBg"))$("modalBg").classList.remove("show");};
+
+/* ============ state ============ */
+const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analysis:null,deductTerrain:true,_analyzing:false};
+
+/* ============ nav ============ */
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>goPanel(b.dataset.panel));
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+function goPanel(id){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  $(id).classList.add("active");
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.panel===id));
+  window.scrollTo({top:0,behavior:"smooth"});
+  if(id==="p-sens")renderSensitivity();
+  if(id==="p-size")renderSize();
+  if(id==="p-money")renderMoney();
+  if(id==="p-flags")renderFlags();
+}
+
+/* ============ SVG chart engine (navy/gold) ============ */
+function chart(o){
+  const w=o.w||640,h=o.h||260,ml=o.ml||56,mr=18,mt=28,mb=42,iw=w-ml-mr,ih=h-mt-mb;
+  const bars=o.bars?o.bars.values:[],line=o.line?o.line.values:[];
+  const all=bars.concat(line,o.hline!=null?[o.hline.y]:[]).filter(v=>isFinite(v));
+  let max=Math.max(...all,0),min=Math.min(...all,0);
+  if(max===min)max=min+1;
+  const pad=(max-min)*0.14;max+=pad;if(min<0)min-=pad;else min=Math.max(0,min-pad*0.3);
+  const Y=v=>mt+ih-((v-min)/(max-min))*ih;
+  const n=o.labels.length,step=iw/n,bw=Math.min(step*0.6,46);
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:Inter,Arial,sans-serif">`;
+  // gridlines
+  for(let g=0;g<=4;g++){const v=min+(max-min)*g/4,y=Y(v);
+    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" stroke="#E3E9F2"/>`;
+    s+=`<text x="${ml-8}" y="${y+4}" font-size="10" text-anchor="end" fill="#5B6B85">${o.yfmt?o.yfmt(v):fmt(v,Math.abs(max)<10?1:0)}</text>`;}
+  if(min<0)s+=`<line x1="${ml}" y1="${Y(0)}" x2="${w-mr}" y2="${Y(0)}" stroke="#9FB2D4" stroke-width="1.2"/>`;
+  // bars
+  bars.forEach((v,k)=>{
+    if(!isFinite(v))return;
+    const x=ml+step*k+(step-bw)/2,yv=Y(v),y0=Y(0);
+    const col=(o.bars.colors&&o.bars.colors[k])||o.bars.color||"#0A1F44";
+    s+=`<rect x="${x}" y="${Math.min(yv,y0)}" width="${bw}" height="${Math.max(Math.abs(yv-y0),1)}" rx="3" fill="${col}"/>`;
+    if(o.bars.labels)s+=`<text x="${x+bw/2}" y="${yv<y0?yv-6:yv+14}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#0A1F44">${o.bars.labels[k]}</text>`;
+  });
+  // line
+  if(o.line){let p="";line.forEach((v,k)=>{p+=(k?" L":"M")+(ml+step*k+step/2).toFixed(1)+" "+Y(v).toFixed(1);});
+    s+=`<path d="${p}" fill="none" stroke="${o.line.color||"#F5C518"}" stroke-width="2.5"/>`;
+    line.forEach((v,k)=>{s+=`<circle cx="${ml+step*k+step/2}" cy="${Y(v)}" r="3.5" fill="#fff" stroke="${o.line.color||"#F5C518"}" stroke-width="2"/>`;});}
+  // hline
+  if(o.hline!=null){const y=Y(o.hline.y);
+    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" stroke="${o.hline.color||"#D94436"}" stroke-width="1.6" stroke-dasharray="6 4"/>`;
+    if(o.hline.label)s+=`<text x="${w-mr}" y="${y-5}" font-size="10" font-weight="600" text-anchor="end" fill="${o.hline.color||"#D94436"}">${o.hline.label}</text>`;}
+  // x labels
+  const every=n>16?Math.ceil(n/12):1;
+  o.labels.forEach((L,k)=>{if(k%every&&k!==n-1)return;
+    s+=`<text x="${ml+step*k+step/2}" y="${h-22}" font-size="10" text-anchor="middle" fill="#0A1F44">${L}</text>`;});
+  if(o.xlab)s+=`<text x="${ml+iw/2}" y="${h-5}" font-size="10.5" text-anchor="middle" fill="#5B6B85" font-weight="500">${o.xlab}</text>`;
+  return s+"</svg>";
+}
+// horizontal tornado bar chart for sensitivity ranking
+function tornado(o){
+  const rows=o.rows,w=o.w||640,rh=38,mt=20,mb=30,ml=140,mr=60,h=mt+mb+rows.length*rh,iw=w-ml-mr;
+  let lo=Math.min(...rows.map(r=>r.low)),hi=Math.max(...rows.map(r=>r.high));
+  const base=o.base;lo=Math.min(lo,base);hi=Math.max(hi,base);
+  const span=hi-lo||1,pad=span*0.08;lo-=pad;hi+=pad;
+  const X=v=>ml+((v-lo)/(hi-lo))*iw;
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:Inter,Arial,sans-serif">`;
+  // base line
+  s+=`<line x1="${X(base)}" y1="${mt-6}" x2="${X(base)}" y2="${h-mb+6}" stroke="#0A1F44" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  s+=`<text x="${X(base)}" y="${mt-9}" font-size="10" font-weight="700" text-anchor="middle" fill="#0A1F44">base ${fmt(base,1)}%</text>`;
+  rows.forEach((r,i)=>{
+    const y=mt+i*rh+rh/2;
+    const x1=X(Math.min(r.low,r.high)),x2=X(Math.max(r.low,r.high));
+    s+=`<text x="${ml-12}" y="${y+4}" font-size="11.5" font-weight="600" text-anchor="end" fill="#0A1F44">${r.label}</text>`;
+    // low half (red-ish) and high half (gold)
+    const xb=X(base);
+    s+=`<rect x="${Math.min(x1,xb)}" y="${y-11}" width="${Math.abs(xb-Math.min(r.low,r.high))}" height="22" rx="4" fill="#D94436" opacity="0.85"/>`;
+    s+=`<rect x="${xb}" y="${y-11}" width="${Math.abs(Math.max(r.low,r.high)-xb)}" height="22" rx="4" fill="#F5C518"/>`;
+    s+=`<text x="${x1-6}" y="${y+4}" font-size="10" text-anchor="end" fill="#5B6B85">${fmt(r.low,1)}</text>`;
+    s+=`<text x="${x2+6}" y="${y+4}" font-size="10" text-anchor="start" fill="#5B6B85">${fmt(r.high,1)}</text>`;
+  });
+  return s+"</svg>";
+}
+
+/* ============ 1. SITE ============ */
+function wireDrop(zone,input,handler){
+  zone.onclick=()=>input.click();
+  zone.ondragover=e=>{e.preventDefault();zone.classList.add("drag");};
+  zone.ondragleave=()=>zone.classList.remove("drag");
+  zone.ondrop=e=>{e.preventDefault();zone.classList.remove("drag");if(e.dataTransfer.files[0])handler(e.dataTransfer.files[0]);};
+  input.onchange=()=>{if(input.files[0])handler(input.files[0]);};
+}
+wireDrop($("kmlDrop"),$("kmlFile"),f=>{
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const {coords}=parseKMLCoords(r.result);
+      if(!coords||coords.length<3)throw new Error("No polygon found in this KML.");
+      S.rawCoords=coords;S.geo=computeGeometry(coords);S.geo.ring=coords;
+      S.name=(r.result.match(/<name>([^<]+)<\/name>/)||[])[1]||f.name.replace(/\.kml$/i,"")||"Site";
+      $("projPill").textContent=S.name+" · "+fmt(S.geo.ha,1)+" ha";
+      renderSite();
+      autoSlope();
+    }catch(e){showModal("Could not read that KML",`<p>${e.message}</p>`);}
+  };
+  r.readAsText(f);
+});
+/* renderSite, svgOutline, autoSlope moved to site_render.js */
+
+
+/* ============ 2. SUN ============ */
+wireDrop($("sunDrop"),$("sunFile"),f=>{
+  const r=new FileReader();
+  const ext=f.name.toLowerCase().split(".").pop();
+  r.onload=()=>{
+    try{
+      let out=null,log=[];
+      if(ext==="xlsx"){
+        const wb=XLSX.read(r.result,{type:"binary"});
+        const sheets=wb.SheetNames.map(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1}));
+        const res=extractResourceFromSheets(sheets);out=res.out;log=res.log;
+      }else{
+        const res=extractResourceFromText(r.result);out=res.out;log=res.log;
+      }
+      if(!out||(!out.ghi&&!out.pvout))throw new Error("Couldn't find GHI or yield in that file. Type the numbers on the right instead.");
+      const tier=out.source==="solargis"?2:out.source==="gsa"?3:4;
+      applyRes({ghi:out.ghi,pvout:out.pvout,lat:out.lat,lon:out.lon,tier,log});
+    }catch(e){showModal("Could not read that file",`<p>${e.message}</p>`);}
+  };
+  if(ext==="xlsx")r.readAsBinaryString(f);else r.readAsText(f);
+});
+$("sunManual").onclick=()=>{
+  const ghi=parseFloat($("ghiIn").value),yld=parseFloat($("yldIn").value);
+  if(!ghi&&!yld){showModal("Enter a number","<p>Type at least the yearly yield.</p>");return;}
+  applyRes({ghi:ghi||null,pvout:yld||null,tier:4,lat:null,lon:null});
+};
+function applyRes(res){
+  const pv=res.pvout||res.yld||(res.ghi?Math.round(res.ghi*0.73):1200);
+  let dist=res.dist;
+  if(dist==null&&res.lat!=null&&res.lon!=null&&S.geo)
+    dist=haversineKm(S.geo.centroid[0],S.geo.centroid[1],res.lat,res.lon);
+  S.res={ghi:res.ghi,pvout:pv,tier:res.tier||4,dist,lat:res.lat,lon:res.lon,
+    yLow:Math.round(pv*0.9),yHigh:Math.round(pv*1.05)};
+  renderSun();
+}
+function tierLabel(t){return {1:"CALCULATED",2:"PAID PRO",3:"FREE PUBLIC",4:"YOUR ENTRY"}[t]||"—";}
+function renderSun(){
+  if(!S.res){$("sunResult").innerHTML="";return;}
+  const r=S.res;
+  $("sunResult").innerHTML=`
+    <div class="stats">
+      <div class="stat gold"><div class="v">${fmt(r.pvout,0)}<span class="u">kWh/kWp</span></div><div class="k">Specific yield</div></div>
+      <div class="stat"><div class="v">${fmt(r.ghi,0)}<span class="u">kWh/m²</span></div><div class="k">Yearly sunshine (GHI)</div></div>
+      <div class="stat"><div class="v">${fmt(r.yLow,0)}–${fmt(r.yHigh,0)}</div><div class="k">Working range kWh/kWp</div></div>
+    </div>
+    <p class="note">Source: <span class="pill-tier">${tierLabel(r.tier)}</span> ${r.dist!=null?"· data point "+r.dist.toFixed(1)+" km from site centre":""}. A paid site-specific report replaces this at Stage 2.</p>
+    <div class="btnrow"><button class="btn primary" data-go="p-size">Next: plant size →</button></div>`;
+  $("sunResult").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+}
+
+/* ============ site outline + terrain overlay ============ */
+function renderSite(){
+  if(!S.geo){$("siteResult").innerHTML="";return;}
+  const g=S.geo;
+  $("siteResult").innerHTML=`
+    <div class="stats">
+      <div class="stat gold"><div class="v">${fmt(g.ha,1)}<span class="u">ha</span></div><div class="k">Site area</div></div>
+      <div class="stat"><div class="v">${fmt(g.acres,0)}<span class="u">ac</span></div><div class="k">In acres</div></div>
+      <div class="stat"><div class="v">${fmt(g.perimeter/1000,2)}<span class="u">km</span></div><div class="k">Perimeter</div></div>
+      <div class="stat"><div class="v">${fmt(g.ew,0)}<span class="u">m</span></div><div class="k">East–west span</div></div>
+    </div>
+    <div class="chartbox" id="siteMapBox">
+      <h4>Site outline</h4>
+      <div id="siteOverlay">${svgOutline(g)}</div>
+      <div id="terrainStatus" class="cap" style="margin-top:8px">${S.analysis?"":"⟳ Reading terrain and water from satellite data in the background…"}</div>
+      <div id="terrainResult">${S.analysis?terrainResultHTML():""}</div>
+    </div>
+    <p class="note">Centre ${g.centroid[0].toFixed(5)}°N ${g.centroid[1].toFixed(5)}°E · area by shoelace method, exact from the polygon.</p>
+    <div class="btnrow"><button class="btn primary" data-go="p-sun">Next: sunshine →</button></div>`;
+  $("siteResult").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+  if(S.analysis)drawOverlay();
+}
+function svgOutline(g,overlayCells){
+  const pts=g.ring||g.coords;if(!pts)return"";
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  pts.forEach(p=>{const[lon,lat]=p;minx=Math.min(minx,lon);maxx=Math.max(maxx,lon);miny=Math.min(miny,lat);maxy=Math.max(maxy,lat);});
+  const W=560,H=360,pad=22,sx=(W-2*pad)/((maxx-minx)||1),sy=(H-2*pad)/((maxy-miny)||1),sc=Math.min(sx,sy);
+  const X=lon=>pad+(lon-minx)*sc,Yy=lat=>H-pad-(lat-miny)*sc;
+  let cellSVG="";
+  if(S.analysis){
+    const gr=S.analysis.grid,N=gr.N,wc=S.analysis.waterCells;
+    const cw=(maxx-minx)/N*sc, ch=(maxy-miny)/N*sc;
+    gr.cells.forEach(c=>{
+      if(!c.inside)return;
+      const x=X(c.lon)-cw/2,y=Yy(c.lat)-ch/2;
+      let fill=null;
+      if(wc.has(c.r*N+c.c))fill="rgba(26,110,160,.78)";              // water = blue
+      else if(c.slopeDeg!=null&&c.slopeDeg>10)fill="rgba(217,68,54,.72)"; // steep = red
+      else if(isFinite(c.ele))fill="rgba(245,197,24,.50)";          // usable land = gold
+      if(fill)cellSVG+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(cw+0.6).toFixed(1)}" height="${(ch+0.6).toFixed(1)}" fill="${fill}"/>`;
+    });
+  }
+  let d=pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Yy(p[1]).toFixed(1)).join(" ")+"Z";
+  const legend=S.analysis?`
+    <g font-family="Inter,Arial" font-size="11">
+      <rect x="${pad}" y="${H-16}" width="11" height="11" fill="rgba(26,110,160,.78)"/><text x="${pad+15}" y="${H-7}" fill="#0A1F44">Water (FPV)</text>
+      <rect x="${pad+95}" y="${H-16}" width="11" height="11" fill="rgba(245,197,24,.6)"/><text x="${pad+110}" y="${H-7}" fill="#0A1F44">Usable land</text>
+      <rect x="${pad+205}" y="${H-16}" width="11" height="11" fill="rgba(217,68,54,.72)"/><text x="${pad+220}" y="${H-7}" fill="#0A1F44">Slope &gt;10° (cut)</text>
+    </g>`:"";
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:#F7F9FC;border-radius:8px">
+    ${cellSVG}
+    <path d="${d}" fill="${S.analysis?'none':'rgba(245,197,24,.18)'}" stroke="#0A1F44" stroke-width="2"/>
+    ${legend}</svg>`;
+}
+function drawOverlay(){ $("siteOverlay").innerHTML=svgOutline(S.geo); }
+function terrainResultHTML(){
+  const a=S.analysis,p=a.profile;
+  const ndwi=/WorldCover/.test(a.waterSrc);
+  return `
+    <div class="stats" style="margin-top:10px">
+      <div class="stat" style="background:linear-gradient(160deg,#1A6EA0,#155a85)"><div class="v">${fmt(p.waterHa,1)}<span class="u">ha</span></div><div class="k">Water — usable for FPV</div></div>
+      <div class="stat gold"><div class="v">${fmt(p.landUsableHa,1)}<span class="u">ha</span></div><div class="k">Usable land (≤10°)</div></div>
+      <div class="stat" style="background:linear-gradient(160deg,#D94436,#b5352a)"><div class="v">${fmt(p.steepHa,1)}<span class="u">ha</span></div><div class="k">Cut — slope &gt;10°</div></div>
+    </div>
+    <table style="margin-top:10px">
+      <tr><td>Water bodies (pond/lake)</td><td>${fmt(p.waterFrac*100,0)}% of site · <b>${fmt(p.waterHa,1)} ha</b></td></tr>
+      <tr><td>Land steeper than 10°</td><td>${fmt(p.steepFrac*100,0)}% of site · <b>${fmt(p.steepHa,1)} ha</b> (removed from usable)</td></tr>
+      <tr><td>Flat usable land</td><td><b>${fmt(p.landUsableHa,1)} ha</b></td></tr>
+      <tr><td>Water source</td><td>${ndwi?'<span class="tag good">SATELLITE LAND-COVER</span>':'<span class="tag warn">TERRAIN PROXY</span>'} ${a.waterSrc}</td></tr>
+      <tr><td>Elevation</td><td><span class="tag navy">NASA SRTM 30 m</span> ${fmt(p.coverage*100,0)}% of cells sampled</td></tr>
+    </table>
+    <label class="fld" style="margin-top:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
+      <input type="checkbox" id="deductToggle" ${S.deductTerrain?"checked":""} style="width:auto">
+      <span class="lb" style="margin:0">Feed this into Plant Size — use detected water for FPV, cut steep land from ground-mount</span>
+    </label>
+    ${ndwi?'':'<p class="note" style="margin-top:6px">Water here is inferred from terrain shape (flat, low, connected basin), not satellite spectral data — the live land-cover service did not respond from this page. Screening-grade: confirm pond edges with a site survey.</p>'}`;
+}
+function autoSlope(){
+  if(!S.geo||!S.rawCoords)return;
+  if(S.analysis||S._analyzing)return;
+  S._analyzing=true;
+  const N=Math.min(28,Math.max(16,Math.round(Math.sqrt(S.geo.ha*1.2))));
+  const onP=(done,total,phase)=>{const el=$("terrainStatus");if(el)el.textContent=`⟳ ${phase==="ndwi"?"Checking satellite land-cover for water":"Reading NASA elevation"}… ${done}/${total}`;};
+  analyzeSite(S.rawCoords,S.geo.ha,N,onP).then(a=>{
+    S.analysis=a;S._analyzing=false;
+    // keep the legacy single-number slope summary in sync for documents
+    S.slope={stats:{maxDeg:maxCellSlope(a.grid),meanDeg:meanCellSlope(a.grid),points:a.profile.insideCells},src:"NASA SRTM 30 m grid",samples:[{}]};
+    if($("terrainStatus")){$("terrainStatus").textContent="";}
+    if($("terrainResult")){$("terrainResult").innerHTML=terrainResultHTML();wireDeduct();}
+    drawOverlay();
+    if(S.deductTerrain)applyDetectedToSize();  // push water/steep into Plant Size immediately
+  }).catch(e=>{
+    S._analyzing=false;
+    const el=$("terrainStatus");
+    if(el)el.innerHTML=`<span style="color:#D94436">Couldn't reach the free terrain service (${e.message||e}). No invented profile is shown — capacity uses your manual packing sliders in Plant Size. Try again when online.</span>`;
+  });
+}
+function maxCellSlope(g){let m=0;g.cells.forEach(c=>{if(c.inside&&c.slopeDeg>m)m=c.slopeDeg;});return m;}
+function meanCellSlope(g){let s=0,n=0;g.cells.forEach(c=>{if(c.inside&&isFinite(c.slopeDeg)){s+=c.slopeDeg;n++;}});return n?s/n:0;}
+function wireDeduct(){
+  const t=$("deductToggle");if(!t)return;
+  t.onchange=()=>{S.deductTerrain=t.checked; if(S.res)applyDetectedToSize(); };
+}
+// Push detected water/steep into the Plant Size sliders + envelope
+function applyDetectedToSize(){
+  if(!S.analysis)return;
+  const p=S.analysis.profile,g=S.geo;
+  if(S.deductTerrain){
+    // waterF = detected water fraction; infra still deducted from land; steep removed via reduced land
+    sizeState.waterF=Math.min(0.95,Math.max(0,p.waterFrac));
+    // represent steep land as extra "infra" hectares removed from ground-mount
+    sizeState._steepHa=p.steepHa;
+  } else {
+    sizeState._steepHa=0;
+  }
+  if($("p-size").classList.contains("active"))renderSize();
+  else calcSize();
+}
+
+/* ============ 3. PLANT SIZE ============ */
+const SIZE_DEF={waterF:0.70,effF:0.85,gcrF:0.55,gcrG:0.42,infraHa:5,wp:580,ma:2.583,_steepHa:0};
+const SIZE_CTRL=[
+  ["waterF","Water fraction","share of site that is pond",0.3,0.95,0.01,v=>Math.round(v*100)+"%"],
+  ["effF","Usable water","after setbacks & lanes",0.5,0.95,0.01,v=>Math.round(v*100)+"%"],
+  ["gcrF","Floating packing","ground-cover ratio, water",0.3,0.75,0.01,v=>v.toFixed(2)],
+  ["gcrG","Ground packing","ground-cover ratio, land",0.3,0.6,0.01,v=>v.toFixed(2)],
+  ["infraHa","Infrastructure","ha taken by roads, substation",0,20,0.5,v=>v+" ha"],
+];
+let sizeState={...SIZE_DEF};
+function renderSize(){
+  if(!S.geo){$("sizeSliders").innerHTML="";$("sizeResult").innerHTML=emptyMsg("Load a site first","p-site","No boundary yet");return;}
+  if(!$("sizeSliders").dataset.built){
+    $("sizeSliders").innerHTML=SIZE_CTRL.map(c=>sliderHTML(c,sizeState[c[0]])).join("");
+    $("sizeSliders").dataset.built="1";
+    SIZE_CTRL.forEach(c=>{const el=$("sl-"+c[0]);el.oninput=()=>{sizeState[c[0]]=parseFloat(el.value);updSlider(c,el.value);calcSize();};});
+  }
+  calcSize();
+}
+function sliderHTML(c,val){
+  const[id,lb,hint,mn,mx,st,fmtf]=c;const pct=((val-mn)/(mx-mn))*100;
+  return `<div class="slider-row">
+    <div class="sl-lb">${lb}<small>${hint}</small></div>
+    <input type="range" id="sl-${id}" min="${mn}" max="${mx}" step="${st}" value="${val}" style="--pct:${pct}%">
+    <div class="sl-val" id="slv-${id}">${fmtf(val)}</div></div>`;
+}
+function updSlider(c,val){const[id,,,mn,mx,,fmtf]=c;const pct=((val-mn)/(mx-mn))*100;
+  $("sl-"+id).style.setProperty("--pct",pct+"%");$("slv-"+id).innerHTML=fmtf(parseFloat(val));}
+function calcSize(){
+  const s=sizeState,r=S.res||{};
+  // steep land detected by terrain analysis (if deduction toggled on) is added to infra removal
+  const infraTot=(s.infraHa||0)+(s._steepHa||0);
+  S.env=computeEnvelope(S.geo.ha,s.waterF,s.effF,s.gcrF,s.gcrG,infraTot,s.wp,s.ma,r.yLow,r.yHigh);
+  const e=S.env;
+  const steepNote=(s._steepHa>0)?`<p class="note" style="margin-top:6px">Plant size reflects <b>${fmt(s._steepHa,1)} ha</b> of land steeper than 10° removed, and water fraction set to the satellite-detected <b>${fmt(s.waterF*100,0)}%</b> (from the Site tab).</p>`:"";
+  $("sizeResult").innerHTML=`
+    <div class="stats" style="margin-top:18px">
+      <div class="stat gold"><div class="v">${fmt(e.tot,0)}<span class="u">MWp</span></div><div class="k">Total DC capacity</div></div>
+      <div class="stat"><div class="v">${fmt(e.fpvMW,0)}<span class="u">MWp</span></div><div class="k">Floating</div></div>
+      <div class="stat"><div class="v">${fmt(e.gmMW,0)}<span class="u">MWp</span></div><div class="k">Ground-mounted</div></div>
+      ${e.genLow?`<div class="stat"><div class="v">${fmt(e.genLow,0)}–${fmt(e.genHigh,0)}<span class="u">GWh</span></div><div class="k">Year-1 generation</div></div>`:""}
+    </div>
+    <div class="chartbox"><h4>Capacity split</h4>${chart({labels:["Floating","Ground","Total"],bars:{values:[e.fpvMW,e.gmMW,e.tot],colors:["#1E3A6B","#5B6B85","#F5C518"],labels:[fmt(e.fpvMW,0),fmt(e.gmMW,0),fmt(e.tot,0)]},xlab:"MWp by area",h:240})}</div>
+    <p class="note">At a 100 MWac licence this is a DC:AC of ${fmt(e.dcac,2)}. Capacity is indicative — final layout needs survey-grade terrain.</p>
+    ${steepNote}
+    <div class="btnrow"><button class="btn primary" data-go="p-money">Next: money →</button></div>`;
+  $("sizeResult").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+}
+function emptyMsg(t,go,big){return `<div class="empty"><div class="big">○</div><b>${t}</b><div class="btnrow" style="justify-content:center;margin-top:14px"><button class="btn ghost" data-go="${go}">Go there →</button></div></div>`;}
+
+/* ============ 4. MONEY ============ */
+const FM_DEF={tariffSen:16,ppa:21,capexPM:1.7,contPct:7.5,opexPct:1.2,opexEsc:2.5,degr:0.5,gearPct:80,intPct:5.5,tenor:18,hurdle:10};
+const FM_CTRL=[
+  ["tariffSen","Tariff","sen/kWh",10,30,0.5,v=>v+" sen"],
+  ["capexPM","Build cost","RM m per MWp",1.0,3.5,0.05,v=>"RM"+v.toFixed(2)+"m"],
+  ["opexPct","Yearly O&M","% of CAPEX",0.5,3,0.1,v=>v+"%"],
+  ["intPct","Loan rate","% per year",3,9,0.25,v=>v+"%"],
+  ["gearPct","Debt share","% of CAPEX",40,90,5,v=>v+"%"],
+  ["tenor","Loan term","years",10,22,1,v=>v+" yr"],
+];
+let fmState={...FM_DEF};
+function renderMoney(){
+  if(!S.env){$("moneyInputs").innerHTML="";$("moneyOut").innerHTML=emptyMsg("Set a plant size first","p-size","No capacity yet");
+    $("moneyOut").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));return;}
+  if(!$("moneyInputs").dataset.built){
+    $("moneyInputs").innerHTML=FM_CTRL.map(c=>sliderHTML(c,fmState[c[0]])).join("");
+    $("moneyInputs").dataset.built="1";
+    FM_CTRL.forEach(c=>{const el=$("sl-"+c[0]);el.oninput=()=>{fmState[c[0]]=parseFloat(el.value);updSlider(c,el.value);calcMoney();};});
+  }
+  calcMoney();
+}
+function fmInputs(){return {mwp:S.env.tot,yld:(S.res&&S.res.pvout)||1259,...fmState};}
+function calcMoney(){
+  S.fm={inputs:fmInputs(),out:buildFM(fmInputs())};
+  const o=S.fm.out,i=S.fm.inputs;
+  const irrTag=o.eqIRR==null?"navy":o.eqIRR*100>=i.hurdle?"good":o.eqIRR*100>=i.hurdle-2?"warn":"bad";
+  const dscrTag=o.dscrMin==null?"navy":o.dscrMin>=1.3?"good":o.dscrMin>=1.2?"warn":"bad";
+  $("moneyOut").innerHTML=`
+    <div class="stats">
+      <div class="stat gold"><div class="v">${o.eqIRR==null?"n/a":fmt(o.eqIRR*100,1)+"<span class='u'>%</span>"}</div><div class="k">Equity IRR</div></div>
+      <div class="stat"><div class="v">${o.dscrMin==null?"—":fmt(o.dscrMin,2)+"<span class='u'>×</span>"}</div><div class="k">Worst-year DSCR</div></div>
+      <div class="stat"><div class="v">${o.payback?o.payback:"—"}<span class="u">yr</span></div><div class="k">Cash payback</div></div>
+      <div class="stat"><div class="v">${fmt(o.lcoeSen,1)}<span class="u">sen</span></div><div class="k">Break-even price</div></div>
+    </div>
+    <table style="margin-top:12px">
+      <tr><td>CAPEX</td><td class="mono">RM ${fmt(o.capex/1e6,0)} m</td></tr>
+      <tr><td>Equity</td><td class="mono">RM ${fmt(o.equity/1e6,0)} m</td></tr>
+      <tr><td>Project IRR</td><td class="mono">${o.projIRR==null?"n/a":fmt(o.projIRR*100,1)+"%"}</td></tr>
+      <tr><td>Verdict @ ${i.hurdle}% hurdle</td><td><span class="tag ${irrTag}">${irrTag==="good"?"CLEARS":irrTag==="warn"?"MARGINAL":"BELOW"}</span> &nbsp;<span class="tag ${dscrTag}">DSCR ${dscrTag==="good"?"OK":dscrTag==="warn"?"TIGHT":"WEAK"}</span></td></tr>
+    </table>
+    <div class="callout">LSS6 makes batteries compulsory but the payment rule is unpublished. These are solar-only numbers; the battery mechanism in the RFP will move them.</div>
+    <div class="btnrow"><button class="btn primary" data-go="p-sens">Play with sensitivity →</button></div>`;
+  $("moneyOut").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+}
+
+/* ============ 5. SENSITIVITY STUDIO ============ */
+const SENS_VARS=[
+  {key:"tariffSen",label:"Tariff",unit:"sen/kWh",min:12,max:26,step:0.5,fmt:v=>v+" sen"},
+  {key:"capexPM",label:"CAPEX",unit:"RM m/MWp",min:1.2,max:3.0,step:0.05,fmt:v=>"RM"+v.toFixed(2)+"m"},
+  {key:"opexPct",label:"OPEX",unit:"% CAPEX/yr",min:0.6,max:2.6,step:0.1,fmt:v=>v+"%"},
+  {key:"intPct",label:"Interest rate",unit:"%/yr",min:3.5,max:8.5,step:0.25,fmt:v=>v+"%"},
+];
+let sensFocus="tariffSen";
+function renderSensitivity(){
+  if(!S.env){
+    $("sensControls").innerHTML="";
+    $("sensCharts").innerHTML=emptyMsg("Complete the money check first","p-money","Nothing to flex yet");
+    $("sensCharts").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
+    return;
+  }
+  const base=fmInputs();
+  // focus selector + live readout
+  $("sensControls").innerHTML=`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      ${SENS_VARS.map(v=>`<button class="btn ${v.key===sensFocus?"gold":"ghost"}" data-focus="${v.key}">${v.label}</button>`).join("")}
+    </div>
+    <div id="sensSliderWrap"></div>`;
+  $("sensControls").querySelectorAll("[data-focus]").forEach(b=>b.onclick=()=>{sensFocus=b.dataset.focus;renderSensitivity();});
+  const v=SENS_VARS.find(x=>x.key===sensFocus);
+  const cur=base[v.key];
+  $("sensSliderWrap").innerHTML=`
+    <div class="slider-row">
+      <div class="sl-lb">${v.label}<small>${v.unit}</small></div>
+      <input type="range" id="sl-sens" min="${v.min}" max="${v.max}" step="${v.step}" value="${cur}" style="--pct:${((cur-v.min)/(v.max-v.min))*100}%">
+      <div class="sl-val" id="slv-sens">${v.fmt(cur)}</div>
+    </div>`;
+  const sl=$("sl-sens");
+  sl.oninput=()=>{
+    const val=parseFloat(sl.value);
+    fmState[v.key]=val;
+    sl.style.setProperty("--pct",((val-v.min)/(v.max-v.min))*100+"%");
+    $("slv-sens").innerHTML=v.fmt(val);
+    drawSensCharts();
+  };
+  drawSensCharts();
+}
+function drawSensCharts(){
+  const base=fmInputs(),baseOut=buildFM(base);
+  const hurdle=base.hurdle;
+  S.fm={inputs:base,out:baseOut}; // keep money in sync
+
+  // (A) sweep current focus var across its range -> IRR line + DSCR bars
+  const v=SENS_VARS.find(x=>x.key===sensFocus);
+  const steps=13,labels=[],irrV=[],dscrV=[];
+  for(let k=0;k<steps;k++){
+    const val=v.min+(v.max-v.min)*k/(steps-1);
+    const o=buildFM({...base,[v.key]:val});
+    labels.push(v.key==="capexPM"?val.toFixed(2):fmt(val,1));
+    irrV.push(o.eqIRR==null?NaN:o.eqIRR*100);
+    dscrV.push(o.dscrMin==null?NaN:o.dscrMin);
+  }
+  // (B) tornado: ±20% on each lever
+  const rows=SENS_VARS.map(x=>{
+    const cur=base[x.key];
+    const lo=buildFM({...base,[x.key]:cur*0.8});
+    const hi=buildFM({...base,[x.key]:cur*1.2});
+    return {label:x.label,low:(lo.eqIRR||0)*100,high:(hi.eqIRR||0)*100,
+      swing:Math.abs(((hi.eqIRR||0)-(lo.eqIRR||0))*100)};
+  }).sort((a,b)=>b.swing-a.swing);
+  // (C) 2-var grid: tariff vs capex -> IRR heat row chart (tariff sweep at 3 capex levels)
+  const tarRange=[];for(let t=13;t<=22;t++)tarRange.push(t);
+  const capLevels=[{c:1.5,col:"#1E3A6B"},{c:1.9,col:"#5B6B85"},{c:2.4,col:"#F5C518"}];
+
+  $("sensCharts").innerHTML=`
+    <div class="stats" style="margin-bottom:6px">
+      <div class="stat gold"><div class="v">${baseOut.eqIRR==null?"n/a":fmt(baseOut.eqIRR*100,1)+"<span class='u'>%</span>"}</div><div class="k">Equity IRR now</div></div>
+      <div class="stat"><div class="v">${fmt(baseOut.dscrMin,2)}<span class="u">×</span></div><div class="k">Worst DSCR</div></div>
+      <div class="stat"><div class="v">${fmt(baseOut.lcoeSen,1)}<span class="u">sen</span></div><div class="k">Break-even</div></div>
+      <div class="stat"><div class="v">${baseOut.payback||"—"}<span class="u">yr</span></div><div class="k">Payback</div></div>
+    </div>
+
+    <div class="chartbox">
+      <h4>Equity IRR vs ${v.label.toLowerCase()}</h4>
+      ${chart({labels,line:{values:irrV,color:"#F5C518"},hline:{y:hurdle,label:hurdle+"% hurdle",color:"#D94436"},yfmt:x=>fmt(x,0)+"%",xlab:v.unit,h:280})}
+      <div class="cap">Gold line is equity IRR as ${v.label.toLowerCase()} moves. Red dashes mark the ${hurdle}% hurdle — where the line crosses is your break-point.</div>
+    </div>
+
+    <div class="card-row">
+      <div class="chartbox">
+        <h4>Worst-year DSCR vs ${v.label.toLowerCase()}</h4>
+        ${chart({labels,bars:{values:dscrV,colors:dscrV.map(d=>d>=1.3?"#1F9D6B":d>=1.2?"#E0A60E":"#D94436")},hline:{y:1.2,label:"1.2× floor",color:"#0A1F44"},yfmt:x=>fmt(x,1),xlab:v.unit,h:260})}
+        <div class="cap">Banks usually want ≥1.2×. Green clears comfortably, amber is tight, red fails cover.</div>
+      </div>
+      <div class="chartbox">
+        <h4>What moves IRR most (±20%)</h4>
+        ${tornado({rows,base:(baseOut.eqIRR||0)*100})}
+        <div class="cap">Each lever flexed ±20% from base. Longest bar = biggest lever. Gold = upside, red = downside.</div>
+      </div>
+    </div>
+
+    <div class="chartbox">
+      <h4>Tariff break-even at three build costs</h4>
+      ${multiLine({xs:tarRange,series:capLevels.map(cl=>({label:"RM"+cl.c+"m/MWp",color:cl.col,values:tarRange.map(t=>{const o=buildFM({...base,tariffSen:t,capexPM:cl.c});return o.eqIRR==null?NaN:o.eqIRR*100;})})),hline:{y:hurdle,label:hurdle+"% hurdle"},xlab:"tariff (sen/kWh)",yfmt:x=>fmt(x,0)+"%",h:300})}
+      <div class="cap">Three build-cost worlds. Find where each line crosses the hurdle — that's the tariff you must win at that cost. LSS4 cleared 17.7–24.8 sen; LSS5/5+ reported 13–16 sen.</div>
+    </div>`;
+}
+// multi-series line chart
+function multiLine(o){
+  const w=o.w||640,h=o.h||280,ml=56,mr=18,mt=28,mb=46,iw=w-ml-mr,ih=h-mt-mb;
+  const allV=[].concat(...o.series.map(s=>s.values)).concat(o.hline?[o.hline.y]:[]).filter(isFinite);
+  let max=Math.max(...allV),min=Math.min(...allV);
+  if(max===min)max=min+1;const pad=(max-min)*0.12;max+=pad;min-=pad;
+  const X=(v,i)=>ml+(i/(o.xs.length-1))*iw,Y=v=>mt+ih-((v-min)/(max-min))*ih;
+  let s=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:Inter,Arial,sans-serif">`;
+  for(let g=0;g<=4;g++){const val=min+(max-min)*g/4,y=Y(val);
+    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" stroke="#E3E9F2"/>`;
+    s+=`<text x="${ml-8}" y="${y+4}" font-size="10" text-anchor="end" fill="#5B6B85">${o.yfmt?o.yfmt(val):fmt(val,0)}</text>`;}
+  if(o.hline){const y=Y(o.hline.y);s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" stroke="#D94436" stroke-width="1.6" stroke-dasharray="6 4"/><text x="${w-mr}" y="${y-5}" font-size="10" font-weight="600" text-anchor="end" fill="#D94436">${o.hline.label}</text>`;}
+  o.series.forEach(se=>{let p="";se.values.forEach((v,i)=>{if(!isFinite(v))return;p+=(p?" L":"M")+X(v,i).toFixed(1)+" "+Y(v).toFixed(1);});
+    s+=`<path d="${p}" fill="none" stroke="${se.color}" stroke-width="2.5"/>`;});
+  o.xs.forEach((x,i)=>{if(i%2&&i!==o.xs.length-1)return;s+=`<text x="${X(0,i)}" y="${h-24}" font-size="10" text-anchor="middle" fill="#0A1F44">${x}</text>`;});
+  if(o.xlab)s+=`<text x="${ml+iw/2}" y="${h-6}" font-size="10.5" text-anchor="middle" fill="#5B6B85" font-weight="500">${o.xlab}</text>`;
+  // legend
+  let lx=ml+4;o.series.forEach(se=>{s+=`<rect x="${lx}" y="${mt-18}" width="11" height="11" rx="2" fill="${se.color}"/><text x="${lx+15}" y="${mt-9}" font-size="10" fill="#0A1F44">${se.label}</text>`;lx+=se.label.length*6.2+34;});
+  return s+"</svg>";
+}
+
+/* ============ 6. DEAL-BREAKERS ============ */
+const FLAGS=[
+ ["Land can legally be used for solar","Mining/farming land usually needs state permission. Projects have died skipping this.","Land-office search + written state position (< RM5k)"],
+ ["It doesn't flood out the switchyard","Floating panels ride floods; batteries and switchgear drown. Need real terrain height.","Free terrain data + river-gauge records (< RM10k)"],
+ ["Ground will hold foundations","Ex-mining soil is soft, can turn acidic, may hide limestone cavities. Fixable at a price.","Geology-department maps (desk work, free)"],
+ ["No blocking indigenous land rights","If Orang Asli rights are nearby, consultation is required by law. Late discovery restarts approvals.","Written enquiry to JAKOA (< RM2k)"],
+ ["Environmental approval timeline known","Big projects need a compulsory EIA — realistically 1.5–2 years, the slowest item.","Pre-meeting with state DOE (free)"],
+ ["Room on the grid","The nearby substation may be full, especially if another solar plant connected first.","TNB IAF-01 connection application"],
+ ["A real buyer for the power","Win the 2,000 MW LSS6 tender (batteries compulsory) or sell corporate via the grid.","Watch tender; sound out corporate buyers"],
+ ["Land isn't too steep","Above ~10° slope, ground-mount costs jump and many EPCC quotes exclude it.","Free satellite terrain check (tab 1)"],
+];
+function renderFlags(){
+  if(!$("flagsTbl").dataset.built){
+    $("flagsTbl").innerHTML=`<table><thead><tr><th style="width:32%">What to check</th><th>Why it can kill the project</th><th style="width:130px">Your call</th></tr></thead><tbody>${
+      FLAGS.map((f,i)=>`<tr><td><b>${f[0]}</b></td><td style="font-size:12px;color:var(--muted)">${f[1]}<br><i style="color:var(--navy)">→ ${f[2]}</i></td>
+      <td><select class="ragsel" data-i="${i}" style="font-size:12px;padding:6px">
+        <option value="">— rate —</option><option value="G">🟢 Green</option><option value="A">🟡 Amber</option><option value="R">🔴 Red</option></select></td></tr>`).join("")
+    }</tbody></table><div id="flagsSummary" style="margin-top:14px"></div>`;
+    $("flagsTbl").dataset.built="1";
+    $("flagsTbl").querySelectorAll(".ragsel").forEach(s=>s.onchange=()=>{S.flags[s.dataset.i]=s.value;flagSummary();});
+  }
+  // restore
+  $("flagsTbl").querySelectorAll(".ragsel").forEach(s=>{if(S.flags[s.dataset.i])s.value=S.flags[s.dataset.i];});
+  flagSummary();
+}
+function flagSummary(){
+  const vals=Object.values(S.flags),R=vals.filter(v=>v==="R").length,A=vals.filter(v=>v==="A").length,G=vals.filter(v=>v==="G").length;
+  let verdict,cls;
+  if(R>0){verdict="STOP — a red flag is a potential deal-breaker. Resolve it before spending more.";cls="bad";}
+  else if(vals.length<8){verdict="Keep rating — "+(8-vals.length)+" still unrated.";cls="navy";}
+  else if(A>0){verdict="PROCEED WITH CARE — no reds, but ambers need Stage-2 checks.";cls="warn";}
+  else{verdict="CLEAR — nothing flagged. Strong screening result.";cls="good";}
+  $("flagsSummary").innerHTML=`<div class="callout" style="border-left-color:var(--${cls==='bad'?'bad':cls==='good'?'good':cls==='warn'?'warn':'navy'})">
+    <b>${R} red · ${A} amber · ${G} green</b><br>${verdict}</div>`;
+}
+
+/* ============ session save/load ============ */
+function snapshot(){return {v:2,name:S.name,geo:S.geo,slope:S.slope,res:S.res,env:S.env,fm:S.fm,flags:S.flags,sizeState,fmState};}
+$("saveSession").onclick=()=>{
+  const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(S.name||"site").replace(/[^A-Za-z0-9_-]+/g,"_")+".sitegate.json";a.click();
+};
+function loadSnapshot(o){
+  Object.assign(S,{name:o.name,geo:o.geo,slope:o.slope,res:o.res,env:o.env,fm:o.fm,flags:o.flags||{}});
+  if(o.sizeState)sizeState=o.sizeState;if(o.fmState)fmState=o.fmState;
+  if(S.name&&S.geo)$("projPill").textContent=S.name+" · "+fmt(S.geo.ha,1)+" ha";
+  ["sizeSliders","moneyInputs","flagsTbl"].forEach(id=>{if($(id))delete $(id).dataset.built;});
+  renderSite();renderSun();autoSlope();
+}
+$("loadSession").onclick=()=>$("sessionFile").click();
+$("sessionFile").onchange=()=>{const f=$("sessionFile").files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{loadSnapshot(JSON.parse(r.result));goPanel("p-site");showModal("Session loaded",`<p>${S.name||"Site"} restored.</p>`);}catch(e){showModal("Couldn't open file",`<p>${e.message}</p>`);}};r.readAsText(f);};
+
+/* ============ demo ============ */
+$("loadDemo").onclick=async()=>{
+  try{
+    const kml=DEMO_KML;
+    const {coords}=parseKMLCoords(kml);
+    S.rawCoords=coords;S.geo=computeGeometry(coords);S.geo.ring=coords;S.name="Bidor Solar";
+    S.res={ghi:1724.9,pvout:1259,tier:3,dist:9.4,lat:4.083,lon:101.333,yLow:1133,yHigh:1322};
+    sizeState={...SIZE_DEF};fmState={...FM_DEF};
+    S.env=computeEnvelope(S.geo.ha,sizeState.waterF,sizeState.effF,sizeState.gcrF,sizeState.gcrG,sizeState.infraHa,sizeState.wp,sizeState.ma,S.res.yLow,S.res.yHigh);
+    S.fm={inputs:fmInputs(),out:buildFM(fmInputs())};
+    $("projPill").textContent=S.name+" · "+fmt(S.geo.ha,1)+" ha";
+    ["sizeSliders","moneyInputs","flagsTbl"].forEach(id=>{if($(id))delete $(id).dataset.built;});
+    renderSite();renderSun();autoSlope();goPanel("p-site");
+  }catch(e){showModal("Demo failed",`<p>${e.message}</p>`);}
+};
+$("printReport").onclick=()=>window.print();
+
+/* ============ 7. WORD DOCUMENTS (docx-js) ============ */
+function docData(){
+  const sens=[];
+  if(S.fm){const fi=S.fm.inputs;
+    for(let t=Math.max(10,Math.round(fi.tariffSen)-3);t<=Math.round(fi.tariffSen)+3;t++){
+      const r=buildFM({...fi,tariffSen:t});if(r.eqIRR!=null)sens.push({t,eq:r.eqIRR*100});}}
+  const unknowns=[];
+  FLAGS.forEach((f,i)=>{const v=S.flags[i];if(v==="G")return;
+    unknowns.push([f[0],f[2],v==="R"?"RED — deal-breaker this session":v==="A"?"AMBER — needs Stage-2 check":"not yet rated"]);});
+  unknowns.push(["BESS cost & revenue mechanism","LSS6 RFP — not yet published","sets the bid"]);
+  unknowns.push(["Bankable yield (paid Solargis + PVsyst)","Stage 2","±several % of revenue"]);
+  return {name:S.name||"Unnamed site",date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
+    geo:S.geo,res:S.res?{...S.res,tierLabel:tierLabel(S.res.tier)}:null,env:S.env,fm:S.fm,sens,slope:S.slope,unknowns};
+}
+function _missP(D,what,when){const{Paragraph,TextRun}=D;
+  return new Paragraph({shading:{type:"clear",fill:"FFF6D6"},border:{left:{style:"single",size:18,color:"E0B30E",space:8}},spacing:{before:60,after:60},
+    children:[new TextRun({text:"MISSING — ",bold:true,color:"B5860B"}),new TextRun({text:what+" ",}),new TextRun({text:"["+when+"]",italics:true,color:"5B6B85",size:18})]});}
+function _h(D,t,lvl){const{Paragraph,TextRun}=D;return new Paragraph({spacing:{before:lvl===1?240:160,after:80},
+  children:[new TextRun({text:t,bold:true,color:"0A1F44",size:lvl===1?30:24,font:"Calibri"})]});}
+function _p(D,t){const{Paragraph,TextRun}=D;return new Paragraph({spacing:{after:80,line:264},children:[new TextRun({text:t,size:21})]});}
+function _row(D,a,b,head){const{TableRow,TableCell,Paragraph,TextRun}=D;
+  const cell=(txt,bold,fill)=>new TableCell({shading:fill?{type:"clear",fill}:undefined,margins:{top:40,bottom:40,left:80,right:80},
+    children:[new Paragraph({children:[new TextRun({text:String(txt),bold:!!bold,color:bold&&head?"FFFFFF":"0A1F44",size:19})]})]});
+  return new TableRow({children:[cell(a,true,head?"0A1F44":"F0F3F9"),cell(b,head,head?"0A1F44":null)]});}
+function _table(D,rows){const{Table,WidthType}=D;return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows});}
+
+async function makeTechProposal(d){
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun,PageBreak}=D;const f=(x,n=0)=>fmt(x,n);
+  const C=[];
+  C.push(new Paragraph({spacing:{after:120},children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:48,color:"0A1F44"})]}));
+  C.push(_missP(D,"Bidding consortium / SPV name and appointed EPCC contractor.","Stage 0"));
+  C.push(new Paragraph({spacing:{after:80},children:[new TextRun({text:`Engineering, Procurement, Construction & Commissioning of ${d.env?f(d.env.tot)+" MWp":"[capacity — MISSING]"} solar farm — ${d.name}`,size:26,bold:true,color:"1E3A6B"})]}));
+  C.push(new Paragraph({children:[new TextRun({text:d.date,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{before:120},children:[new TextRun({text:"Format follows the LSS4-era EPCC proposal precedent. Every figure marked MISSING awaits the LSS6 RFP, a TNB confirmation, or field work — nothing is invented. Screening grade: −30% to +50%.",italics:true,size:18,color:"5B6B85"})]}));
+  C.push(new Paragraph({children:[new PageBreak()]}));
+  // 1 intro
+  C.push(_h(D,"1  Introduction",1));
+  C.push(_p(D,'The Government of Malaysia, through Suruhanjaya Tenaga, is expected to issue the LSS6 request for proposal (2,000 MW, BESS mandatory per the Deputy Prime Minister on 3 June 2026).'));
+  C.push(_missP(D,"ST RFP reference, capacity bands, BESS sizing rule and tariff mechanism.","awaiting LSS6 RFP"));
+  if(d.geo){
+    let siteTxt="The site covers "+f(d.geo.ha,2)+" ha ("+f(d.geo.acres,1)+" acres), measured by shoelace method from the boundary file - centre "+d.geo.centroid[0].toFixed(5)+" N "+d.geo.centroid[1].toFixed(5)+" E, "+f(d.geo.ew)+" m x "+f(d.geo.ns)+" m, perimeter "+f(d.geo.perimeter/1000,2)+" km.";
+    if(d.slope)siteTxt+=" Screening slope "+d.slope.stats.maxDeg.toFixed(1)+" deg max.";
+    C.push(_p(D,siteTxt));
+  }
+  else C.push(_missP(D,"Site geometry — no boundary loaded.","load KML"));
+  C.push(_missP(D,"Distance and routing to the TNB interconnection point; bay capacity confirmation.","TNB IAF-01 — Stage 2"));
+  // 2 scope
+  C.push(_h(D,"2  Scope of Work",1));
+  C.push(_h(D,"PV Farm",2));
+  if(d.env){const mods=Math.round(d.env.tot*1e6/580);
+    C.push(_p(D,`PV modules with floating pontoon and ground mounting (~${f(mods)} modules at 580 Wp, indicative); string inverters (count at detailed design); DC and LV AC cabling; 0.8/33 kV box transformers; 33 kV reticulation; BESS per LSS6 (sizing unpublished); weather stations.`));}
+  else C.push(_p(D,"PV plant — envelope not computed this session."));
+  C.push(_h(D,"Grid Interconnection",2));
+  C.push(_missP(D,"Interconnector length, UG-vs-OHL, right-of-way, and whether the PMU can accept a new bay (assume none until TNB confirms).","TNB nodal study + site visit — fatal-flaw item"));
+  C.push(_h(D,"Plant Description",2));
+  C.push(_table(D,[
+    _row(D,"Item","Value",true),
+    _row(D,"Location",d.name),
+    _row(D,"Utility","Tenaga Nasional Berhad"),
+    _row(D,"Grid connection distance","MISSING — TNB nodal study"),
+    _row(D,"Plant type",d.env&&d.env.fpvMW>0?"Hybrid floating + ground, with BESS":"Ground-mounted, with BESS"),
+    _row(D,"Total DC capacity",d.env?`${f(d.env.tot)} MWp (FPV ${f(d.env.fpvMW)} + ground ${f(d.env.gmMW)})`:"—"),
+    _row(D,"Site area",d.geo?`${f(d.geo.ha,2)} ha`:"—"),
+  ]));
+  // 3 energy + finance
+  C.push(_h(D,"3  Energy & Financial Analysis",1));
+  if(d.res)C.push(_p(D,`Resource: sunshine ${f(d.res.ghi,1)} kWh/m²/yr, working yield ${f(d.res.yLow)}–${f(d.res.yHigh)} kWh/kWp/yr (${d.res.tierLabel}). A paid site report supersedes this.`));
+  else C.push(_missP(D,"Solar resource not entered.","tab 2 + paid report"));
+  if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
+    C.push(_table(D,[
+      _row(D,"Parameter","Value (screening)",true),
+      _row(D,"Capacity / yield",`${f(fi.mwp)} MWp · ${f(fi.yld)} kWh/kWp`),
+      _row(D,"Tariff / PPA",`${fi.tariffSen} sen/kWh · ${fi.ppa} yr`),
+      _row(D,"Build cost",`RM ${fi.capexPM} m/MWp + ${fi.contPct}% = RM ${f(o.capex/1e6)} m`),
+      _row(D,"BESS","MISSING — cost & revenue await LSS6 RFP; excluded not invented"),
+      _row(D,"Financing",`${fi.gearPct}% debt @ ${fi.intPct}% × ${fi.tenor} yr`),
+      _row(D,"Equity IRR / Project IRR",`${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%"} · ${o.projIRR==null?"n/a":f(o.projIRR*100,1)+"%"}`),
+      _row(D,"Worst DSCR / payback",`${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"} · ${o.payback?"yr "+o.payback:"beyond PPA"}`),
+      _row(D,"Break-even price",`${f(o.lcoeSen,1)} sen/kWh`),
+    ]));
+    C.push(new Paragraph({spacing:{before:100},children:[new TextRun({text:"Loading the compulsory battery cost without a battery revenue mechanism pushes break-even above any LSS tariff in history. The RFP's battery payment rule is the single most price-setting unknown.",italics:true,size:19,color:"5B6B85"})]}));
+  } else C.push(_missP(D,"Financial screening not completed.","tab 4"));
+  // 4 PQP
+  C.push(_h(D,"4  Project Quality Plan",1));
+  C.push(_p(D,"BEM-registered PEs; document control with 7-day Employer comment cycle; Primavera P6 schedule; DOSH-registered SHO, CIDB Green Cards, HIRARC, permit-to-work; ITPs, FAT/SAT; Grid Compliance and Performance Tests per the Malaysian Grid Code."));
+  C.push(_missP(D,"Named EPCC contractor, org chart, and schedule milestone dates.","at appointment"));
+  C.push(new Paragraph({spacing:{before:160},children:[new TextRun({text:`Generated by SiteGate on ${d.date} from session values. Screening-stage; not bankable; not a sole basis for investment.`,italics:true,size:17,color:"5B6B85"})]}));
+  const doc=new Document({sections:[{properties:{page:{margin:{top:1000,bottom:1000,left:1100,right:1100}}},children:C}]});
+  return await Packer.toBlob(doc);
+}
+
+async function makeBoardPaper(d){
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun}=D;const f=(x,n=0)=>fmt(x,n);
+  const C=[];
+  C.push(new Paragraph({spacing:{after:60},children:[new TextRun({text:"BOARD PAPER — FOR DECISION",bold:true,size:44,color:"0A1F44"})]}));
+  C.push(new Paragraph({spacing:{after:120},children:[new TextRun({text:`${d.name}${d.env?" · "+f(d.env.tot)+" MWp":""} · LSS6 candidacy`,size:24,bold:true,color:"1E3A6B"})]}));
+  C.push(new Paragraph({children:[new TextRun({text:`${d.date} · generated by SiteGate · CONFIDENTIAL`,italics:true,size:18,color:"5B6B85"})]}));
+  C.push(_h(D,"1  Decision sought",1));
+  C.push(_p(D,"Approve the Stage-2 verification budget of RM 150,000–400,000 to take this desk-screened site to bid-ready before the LSS6 RFP opens. Kill-fast: the land search and TNB's grid answer can each end the project for under RM 100,000."));
+  C.push(_h(D,"2  The asset, in verified numbers",1));
+  C.push(_table(D,[
+    _row(D,"Item","Value (source)",true),
+    _row(D,"Site",d.geo?`${f(d.geo.ha,2)} ha / ${f(d.geo.acres,1)} ac, centre ${d.geo.centroid[0].toFixed(4)}°N ${d.geo.centroid[1].toFixed(4)}°E (computed)`:"MISSING"),
+    _row(D,"Plant envelope",d.env?`${f(d.env.tot)} MWp (${f(d.env.fpvMW)} floating + ${f(d.env.gmMW)} ground)`:"MISSING"),
+    _row(D,"Solar resource",d.res?`${f(d.res.ghi,1)} kWh/m²/yr · yield ${f(d.res.yLow)}–${f(d.res.yHigh)} (${d.res.tierLabel})`:"MISSING"),
+    _row(D,"Terrain",d.slope?`max ${d.slope.stats.maxDeg.toFixed(1)}°, avg ${d.slope.stats.meanDeg.toFixed(1)}°`:"not checked"),
+    _row(D,"Route to revenue","LSS6 (2,000 MW, BESS compulsory) or CRESS corporate supply"),
+  ]));
+  C.push(_h(D,"3  The money, at screening grade",1));
+  if(d.fm){const fi=d.fm.inputs,o=d.fm.out;
+    C.push(_p(D,`At ${fi.capexPM} m/MWp + ${fi.contPct}% contingency, ${fi.gearPct}% debt @ ${fi.intPct}% × ${fi.tenor} yr, a ${fi.tariffSen} sen/kWh tariff returns ${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"% equity IRR"} vs the ${fi.hurdle}% hurdle, worst-year cover ${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"}, cash back ${o.payback?"in year "+o.payback:"beyond the PPA"}. Break-even ${f(o.lcoeSen,1)} sen/kWh.`));
+    C.push(new Paragraph({shading:{type:"clear",fill:"FFF6D6"},border:{left:{style:"single",size:18,color:"E0B30E",space:8}},spacing:{before:80,after:80},
+      children:[new TextRun({text:"The LSS6 wildcard: ",bold:true,color:"B5860B"}),new TextRun({text:"batteries are compulsory but how they are paid is unpublished. Loaded with battery cost and no battery revenue, no tariff in LSS history clears the hurdle. The RFP's battery mechanism — not the solar economics — decides whether this bids.",size:20})]}));
+  } else C.push(_missP(D,"Financial screening not completed.","tab 4"));
+  C.push(_h(D,"4  What we don't yet know",1));
+  d.unknowns.forEach(u=>C.push(new Paragraph({bullet:{level:0},spacing:{after:40},children:[new TextRun({text:u[0]+" — ",bold:true,size:20}),new TextRun({text:u[1]+" · ",size:20}),new TextRun({text:u[2],italics:true,color:"B5860B",size:19})]})));
+  C.push(_h(D,"5  Recommendation",1));
+  C.push(_p(D,"Proceed to Stage 2 in kill-fast order (land → state → TNB → rest), cap exposure at RM 400,000, and hold the bid/no-bid decision until the LSS6 RFP discloses the battery mechanism."));
+  const doc=new Document({sections:[{properties:{page:{margin:{top:1000,bottom:1000,left:1100,right:1100}}},children:C}]});
+  return await Packer.toBlob(doc);
+}
+function dlBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();}
+async function genDoc(btn,maker,suffix,label){
+  if(!S.geo){showModal("Load a site first","<p>Documents are built from this session. Load a boundary in tab 1.</p>");return;}
+  const orig=btn.textContent;btn.disabled=true;btn.textContent="\u27F3 building\u2026";
+  try{
+    // wait for the Word engine to finish loading (instead of failing on first click)
+    if(!(window.docx&&window.docx.Document)){
+      btn.textContent="\u27F3 loading Word engine\u2026";
+      const ready=window.__docxReady?await window.__docxReady:false;
+      if(!ready||!(window.docx&&window.docx.Document))
+        throw new Error("The Word engine could not load. Check your internet connection (the first document download needs it), then try again. Everything else in SiteGate works offline.");
+    }
+    btn.textContent="\u27F3 building\u2026";
+    const blob=await maker(docData());
+    dlBlob(blob,(S.name||"site").replace(/[^A-Za-z0-9_-]+/g,"_")+suffix);
+    btn.disabled=false;btn.textContent=orig;
+    showModal(label+" ready","<p>A Word file is in your Downloads. Open it in Word to edit, or print to PDF. Unverified figures are marked MISSING, never invented.</p>");
+  }catch(e){console.error(e);btn.disabled=false;btn.textContent=orig;
+    showModal("Couldn't build the document",`<p>${e.message}</p>`);}
+}
+$("docTP").onclick=()=>genDoc($("docTP"),makeTechProposal,"_Technical_Proposal.docx","Technical Proposal");
+$("docBoard").onclick=()=>genDoc($("docBoard"),makeBoardPaper,"_Board_Paper.docx","Board Paper");
+
+</script>
+</body></html>
