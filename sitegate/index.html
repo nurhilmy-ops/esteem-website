@@ -6,21 +6,21 @@
 <title>SiteGate</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
 <script>
-/* docx loader fallback chain — first that defines window.docx wins */
+/* docx UMD loader — tries multiple CDNs in order */
 window.__docxReady=new Promise(res=>{
   function ok(){return !!(window.docx&&window.docx.Document&&window.docx.Packer);}
   if(ok())return res(true);
   const urls=[
-    "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js",
-    "https://unpkg.com/docx@8.5.0/build/index.js"
+    "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js",
+    "https://unpkg.com/docx@8.5.0/build/index.umd.js",
+    "https://cdn.jsdelivr.net/npm/docx@7.8.2/build/index.umd.js",
+    "https://unpkg.com/docx@7.8.2/build/index.umd.js"
   ];
   let i=0;
   (function tryNext(){
     if(ok())return res(true);
     if(i>=urls.length){
-      // last resort: poll a bit in case the first tag is still parsing
       let n=0;const t=setInterval(()=>{if(ok()){clearInterval(t);res(true);}else if(++n>40){clearInterval(t);res(false);}},150);
       return;
     }
