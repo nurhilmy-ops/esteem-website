@@ -645,20 +645,44 @@ const DEMO_KML="<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<kml xmlns=\"http://
 
 /* ============ background site analyzer (live fetch + NDWI + fallback) ============ */
 // Fetch SRTM elevations for all inside cells in batches; fill grid.cells[].ele
+const ELEV_APIS=[
+  locs=>"https://api.opentopodata.org/v1/srtm30m?locations="+locs,
+  locs=>"https://api.open-elevation.com/api/v1/lookup?locations="+locs,
+];
+async function fetchElevBatch(locs,apiIdx){
+  const url=ELEV_APIS[apiIdx||0](locs);
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),18000);
+  const rs=await fetch(url,{signal:ctl.signal,mode:"cors"});clearTimeout(to);
+  if(!rs.ok)throw new Error("HTTP "+rs.status);
+  const j=await rs.json();
+  if(j.status&&j.status!=="OK")throw new Error(j.error||j.status);
+  return (j.results||[]).map(r=>r.elevation!=null?r.elevation:(r.ele!=null?r.ele:null));
+}
 async function fetchElevations(grid){
   const inside=grid.cells.filter(c=>c.inside);
-  const BATCH=90;let done=0;
+  const BATCH=50;let done=0,apiIdx=0;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   for(let i=0;i<inside.length;i+=BATCH){
     const chunk=inside.slice(i,i+BATCH);
     const locs=chunk.map(c=>c.lat.toFixed(6)+","+c.lon.toFixed(6)).join("|");
-    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
-    const rs=await fetch("https://api.opentopodata.org/v1/srtm30m?locations="+locs,{signal:ctl.signal});
-    clearTimeout(to);
-    const j=await rs.json();
-    if(j.status!=="OK")throw new Error(j.error||j.status);
-    j.results.forEach((res,k)=>{chunk[k].ele=res.elevation;});
+    let eles=null,lastErr=null;
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        if(attempt>0)await sleep(attempt*1500);
+        eles=await fetchElevBatch(locs,apiIdx);
+        break;
+      }catch(e){
+        lastErr=e;
+        // Try alternate API after 2 consecutive failures
+        if(attempt===1&&ELEV_APIS.length>1)apiIdx=(apiIdx+1)%ELEV_APIS.length;
+      }
+    }
+    if(!eles)throw lastErr||new Error("elevation fetch failed");
+    eles.forEach((el,k)=>{chunk[k].ele=el;});
     done+=chunk.length;
     if(grid.onProgress)grid.onProgress(done,inside.length,"elevation");
+    // Respect free-tier rate limit (1 req/s)
+    if(i+BATCH<inside.length)await sleep(1100);
   }
   return grid;
 }
@@ -976,9 +1000,11 @@ function autoSlope(){
   }).catch(e=>{
     S._analyzing=false;
     const el=$("terrainStatus");
-    if(el)el.innerHTML=`<span style="color:#D94436">Couldn't reach the free terrain service (${e.message||e}). No invented profile is shown — capacity uses your manual packing sliders in Plant Size. Try again when online.</span>`;
+    if(el)el.innerHTML=`<span style="color:#D94436">Couldn't reach the terrain service (${e.message||e}). No invented profile is shown — capacity uses your manual packing sliders in Plant Size.</span>
+      <button class="btn ghost" style="margin-top:8px;font-size:12px" onclick="retryTerrain()">⟳ Retry terrain analysis</button>`;
   });
 }
+function retryTerrain(){S.analysis=null;S._analyzing=false;autoSlope();}
 function maxCellSlope(g){let m=0;g.cells.forEach(c=>{if(c.inside&&c.slopeDeg>m)m=c.slopeDeg;});return m;}
 function meanCellSlope(g){let s=0,n=0;g.cells.forEach(c=>{if(c.inside&&isFinite(c.slopeDeg)){s+=c.slopeDeg;n++;}});return n?s/n:0;}
 function wireDeduct(){
