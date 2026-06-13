@@ -736,7 +736,7 @@ async function analyzeSite(coords,siteHa,N,onProgress){
   let water=null,waterSrc="";
   try{ water=await tryNDWI(grid); }catch(e){ water=null; }
   if(water&&water.cells.size>0){ waterSrc=water.reason; }
-  else { water=waterProxy(grid,{flatMax:2.0,lowQuantile:0.45}); waterSrc=water.reason; }
+  else { water={cells:new Set(),frac:0,reason:"no satellite data — set water fraction manually"}; waterSrc=water.reason; }
   const profile=terrainProfile(grid,siteHa,water.cells,10);
   return {grid,waterCells:water.cells,waterSrc,waterFracDetected:water.frac,profile};
 }
@@ -981,7 +981,7 @@ function terrainResultHTML(){
       <input type="checkbox" id="deductToggle" ${S.deductTerrain?"checked":""} style="width:auto">
       <span class="lb" style="margin:0">Feed this into Plant Size — use detected water for FPV, cut steep land from ground-mount</span>
     </label>
-    ${ndwi?'':'<p class="note" style="margin-top:6px">Water here is inferred from terrain shape (flat, low, connected basin), not satellite spectral data — the live land-cover service did not respond from this page. Screening-grade: confirm pond edges with a site survey.</p>'}`;
+    ${ndwi?'':'<p class="note" style="margin-top:6px">Satellite land-cover service did not respond — water set to 0%. If the site has a pond or lake, set the water fraction manually in the Plant Size tab.</p>'}`;
 }
 function autoSlope(){
   if(!S.geo||!S.rawCoords)return;
