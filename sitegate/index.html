@@ -182,6 +182,7 @@ tr:nth-child(even) td{background:#FAFBFD}
 
 <nav class="nav" id="nav">
   <button class="active" data-panel="p-home"><span class="n">●</span>Home</button>
+  <button data-panel="p-brief"><span class="n">✦</span>Project</button>
   <button data-panel="p-site"><span class="n">1</span>Site</button>
   <button data-panel="p-sun"><span class="n">2</span>Sunshine</button>
   <button data-panel="p-size"><span class="n">3</span>Plant size</button>
@@ -209,12 +210,61 @@ tr:nth-child(even) td{background:#FAFBFD}
     </div>
     <div class="card" style="margin-top:22px">
       <div class="btnrow">
-        <button class="btn primary" data-go="p-site">Start with a site →</button>
+        <button class="btn primary" data-go="p-brief">Start — enter project brief →</button>
         <button class="btn ghost" id="loadDemo">Load Bidor demo</button>
         <button class="btn ghost" id="loadSession">Open saved file</button>
         <input type="file" id="sessionFile" accept=".json,.sitegate.json" hidden>
       </div>
       <p class="note" style="margin-top:12px">Everything runs in your browser. Nothing is uploaded. Screening grade: real numbers may land −30% to +50% of these.</p>
+    </div>
+  </section>
+
+  <!-- PROJECT BRIEF -->
+  <section class="panel" id="p-brief">
+    <div class="card">
+      <h2>Project brief</h2>
+      <p class="lead">These details appear on the cover page and project particulars of every report. Fill what you know — the rest is generated or marked MISSING.</p>
+      <div class="card-row">
+        <div>
+          <label class="fld"><span class="lb">Project name <span class="hint">e.g. Ladang Solar Bidor</span></span><input type="text" id="br-projName" placeholder="Unnamed solar project"></label>
+          <label class="fld"><span class="lb">Developer / SPV name <span class="hint">the company submitting the bid</span></span><input type="text" id="br-devName" placeholder="e.g. Syarikat Tenaga Baru Sdn Bhd"></label>
+          <label class="fld"><span class="lb">EPCC contractor <span class="hint">appointed or intended</span></span><input type="text" id="br-epccName" placeholder="To be appointed"></label>
+          <label class="fld"><span class="lb">Prepared by <span class="hint">consultant / author name</span></span><input type="text" id="br-preparedBy" placeholder="Principal Solar Consultant"></label>
+        </div>
+        <div>
+          <label class="fld"><span class="lb">Programme / scheme</span>
+            <select id="br-programme">
+              <option value="LSS6">LSS6 — Large Scale Solar 6 (2,000 MW)</option>
+              <option value="LSS5+">LSS5+ — Large Scale Solar 5+</option>
+              <option value="CRESS">CRESS — Corporate Renewable Energy Supply Scheme</option>
+              <option value="NEM">NEM — Net Energy Metering</option>
+              <option value="IPP">IPP — Independent Power Producer</option>
+              <option value="Other">Other / Not specified</option>
+            </select>
+          </label>
+          <label class="fld"><span class="lb">Grid connection point <span class="hint">TNB substation name</span></span><input type="text" id="br-gridPoint" placeholder="e.g. TNB PMU Bidor"></label>
+          <label class="fld"><span class="lb">Distance to grid <span class="hint">km — leave blank if unknown</span></span><input type="number" id="br-gridKm" placeholder="0.5" step="0.1" min="0"></label>
+          <label class="fld"><span class="lb">Land status</span>
+            <select id="br-landStatus">
+              <option value="Agricultural">Agricultural (conversion required)</option>
+              <option value="Ex-mining">Ex-mining / industrial</option>
+              <option value="State land">State land (TOL/lease)</option>
+              <option value="Freehold">Freehold</option>
+              <option value="Leasehold">Leasehold</option>
+              <option value="Unknown">Unknown — to be confirmed</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div class="stat gold"><div class="v" id="br-show-prog" style="font-size:15px;line-height:1.3">LSS6</div><div class="k">Programme</div></div>
+        <div class="stat"><div class="v" id="br-show-date" style="font-size:13px;line-height:1.3">—</div><div class="k">Report date (auto)</div></div>
+        <div class="stat"><div class="v" style="font-size:15px">Rev 0</div><div class="k">Version (auto)</div></div>
+      </div>
+      <div class="btnrow" style="margin-top:18px">
+        <button class="btn primary" data-go="p-site">Next: site boundary →</button>
+      </div>
     </div>
   </section>
 
@@ -752,6 +802,33 @@ $("modalBg").onclick=e=>{if(e.target===$("modalBg"))$("modalBg").classList.remov
 /* ============ state ============ */
 const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analysis:null,deductTerrain:true,_analyzing:false};
 
+/* ============ PROJECT BRIEF ============ */
+const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',landStatus:'Agricultural'};
+let B={...BRIEF_DEF};
+function initBrief(){
+  ['projName','devName','epccName','preparedBy','gridPoint','gridKm'].forEach(k=>{
+    const el=document.getElementById('br-'+k);
+    if(!el)return;
+    el.value=B[k]||'';
+    el.oninput=()=>{B[k]=el.value;syncBriefDisplay();};
+  });
+  ['programme','landStatus'].forEach(k=>{
+    const el=document.getElementById('br-'+k);
+    if(!el)return;
+    el.value=B[k]||BRIEF_DEF[k];
+    el.onchange=()=>{B[k]=el.value;syncBriefDisplay();};
+  });
+  syncBriefDisplay();
+}
+function syncBriefDisplay(){
+  const prog=document.getElementById('br-show-prog');
+  const dt=document.getElementById('br-show-date');
+  if(prog)prog.textContent=B.programme||'LSS6';
+  if(dt)dt.textContent=new Date().toLocaleDateString('en-MY',{day:'numeric',month:'long',year:'numeric'});
+  if(B.projName)$("projPill").textContent=B.projName+(S.geo?" · "+fmt(S.geo.ha,1)+" ha":"");
+}
+document.addEventListener('DOMContentLoaded',()=>{initBrief();});
+
 /* ============ nav ============ */
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>goPanel(b.dataset.panel));
 document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
@@ -1281,7 +1358,7 @@ function flagSummary(){
 }
 
 /* ============ session save/load ============ */
-function snapshot(){return {v:2,name:S.name,geo:S.geo,slope:S.slope,res:S.res,env:S.env,fm:S.fm,flags:S.flags,sizeState,fmState};}
+function snapshot(){return {v:3,name:S.name,geo:S.geo,slope:S.slope,res:S.res,env:S.env,fm:S.fm,flags:S.flags,sizeState,fmState,brief:B};}
 $("saveSession").onclick=()=>{
   const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(S.name||"site").replace(/[^A-Za-z0-9_-]+/g,"_")+".sitegate.json";a.click();
@@ -1289,9 +1366,10 @@ $("saveSession").onclick=()=>{
 function loadSnapshot(o){
   Object.assign(S,{name:o.name,geo:o.geo,slope:o.slope,res:o.res,env:o.env,fm:o.fm,flags:o.flags||{}});
   if(o.sizeState)sizeState=o.sizeState;if(o.fmState)fmState=o.fmState;
-  if(S.name&&S.geo)$("projPill").textContent=S.name+" · "+fmt(S.geo.ha,1)+" ha";
+  if(o.brief)Object.assign(B,o.brief);
+  if(S.name&&S.geo)$("projPill").textContent=(B.projName||S.name)+" · "+fmt(S.geo.ha,1)+" ha";
   ["sizeSliders","moneyInputs","flagsTbl"].forEach(id=>{if($(id))delete $(id).dataset.built;});
-  renderSite();renderSun();autoSlope();
+  initBrief();renderSite();renderSun();autoSlope();
 }
 $("loadSession").onclick=()=>$("sessionFile").click();
 $("sessionFile").onchange=()=>{const f=$("sessionFile").files[0];if(!f)return;const r=new FileReader();
@@ -1325,8 +1403,19 @@ function docData(){
     unknowns.push([f[0],f[2],v==="R"?"RED — deal-breaker this session":v==="A"?"AMBER — needs Stage-2 check":"not yet rated"]);});
   unknowns.push(["BESS cost & revenue mechanism","LSS6 RFP — not yet published","sets the bid"]);
   unknowns.push(["Bankable yield (paid Solargis + PVsyst)","Stage 2","±several % of revenue"]);
-  return {name:S.name||"Unnamed site",date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
-    geo:S.geo,res:S.res?{...S.res,tierLabel:tierLabel(S.res.tier)}:null,env:S.env,fm:S.fm,sens,slope:S.slope,unknowns};
+  const brief={
+    projName: B.projName||S.name||"Unnamed solar project",
+    devName:  B.devName||null,
+    epccName: B.epccName||null,
+    preparedBy: B.preparedBy||"Principal Solar Consultant",
+    programme: B.programme||"LSS6",
+    gridPoint: B.gridPoint||null,
+    gridKm:   B.gridKm||null,
+    landStatus: B.landStatus||"Unknown",
+    version:  "Rev 0",
+  };
+  return {name:brief.projName,date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
+    brief,geo:S.geo,res:S.res?{...S.res,tierLabel:tierLabel(S.res.tier)}:null,env:S.env,fm:S.fm,sens,slope:S.slope,unknowns};
 }
 function _missP(D,what,when){const{Paragraph,TextRun}=D;
   return new Paragraph({shading:{type:"clear",fill:"FFF6D6"},border:{left:{style:"single",size:18,color:"E0B30E",space:8}},spacing:{before:60,after:60},
@@ -1341,18 +1430,51 @@ function _row(D,a,b,head){const{TableRow,TableCell,Paragraph,TextRun}=D;
 function _table(D,rows){const{Table,WidthType}=D;return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows});}
 
 async function makeTechProposal(d){
-  const D=window.docx;const{Document,Packer,Paragraph,TextRun,PageBreak}=D;const f=(x,n=0)=>fmt(x,n);
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun,PageBreak,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
+  const b=d.brief;
   const C=[];
-  C.push(new Paragraph({spacing:{after:120},children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:48,color:"0A1F44"})]}));
-  C.push(_missP(D,"Bidding consortium / SPV name and appointed EPCC contractor.","Stage 0"));
-  C.push(new Paragraph({spacing:{after:80},children:[new TextRun({text:`Engineering, Procurement, Construction & Commissioning of ${d.env?f(d.env.tot)+" MWp":"[capacity — MISSING]"} solar farm — ${d.name}`,size:26,bold:true,color:"1E3A6B"})]}));
-  C.push(new Paragraph({children:[new TextRun({text:d.date,color:"5B6B85"})]}));
-  C.push(new Paragraph({spacing:{before:120},children:[new TextRun({text:"Format follows the LSS4-era EPCC proposal precedent. Every figure marked MISSING awaits the LSS6 RFP, a TNB confirmation, or field work — nothing is invented. Screening grade: −30% to +50%.",italics:true,size:18,color:"5B6B85"})]}));
+  // ── COVER PAGE ──
+  C.push(new Paragraph({spacing:{before:480,after:60},alignment:AlignmentType.CENTER,children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:56,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:320},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.programme+" | SOLAR PHOTOVOLTAIC POWER PLANT",size:22,color:"1E3A6B",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:"ENGINEERING, PROCUREMENT, CONSTRUCTION & COMMISSIONING",bold:true,size:24,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:`OF ${d.env?f(d.env.tot)+" MWp (AT STC)":"[CAPACITY — TBC]"} SOLAR PHOTOVOLTAIC POWER PLANT`,bold:true,size:24,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:`AT ${b.projName.toUpperCase()}`,bold:true,size:24,color:"0A1F44",font:"Calibri"})]}));
+  if(d.geo){const[la,lo]=d.geo.centroid;
+    C.push(new Paragraph({spacing:{after:280},alignment:AlignmentType.CENTER,children:[new TextRun({text:`${la.toFixed(4)}°N  ${lo.toFixed(4)}°E`,size:20,color:"5B6B85",italics:true})]}));}
+  else C.push(new Paragraph({spacing:{after:280}}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:(b.devName||"[DEVELOPER NAME — ENTER IN PROJECT BRIEF]").toUpperCase(),bold:true,size:28,color:"1E3A6B",font:"Calibri"})]}));
+  if(b.epccName)C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:"EPCC CONTRACTOR: "+b.epccName.toUpperCase(),size:20,color:"1E3A6B"})]}));
+  C.push(new Paragraph({spacing:{before:320,after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:d.date.toUpperCase(),size:20,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.version,size:20,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:"Prepared by: "+b.preparedBy,size:18,color:"5B6B85",italics:true})]}));
+  C.push(new Paragraph({children:[new PageBreak()]}));
+  // ── PAGE 2: PROJECT PARTICULARS ──
+  C.push(_h(D,"PROJECT PARTICULARS",1));
+  C.push(_table(D,[
+    _row(D,"Item","Details",true),
+    _row(D,"Project name",b.projName),
+    _row(D,"Developer / SPV",b.devName||"MISSING — enter in Project Brief tab"),
+    _row(D,"EPCC contractor",b.epccName||"To be appointed"),
+    _row(D,"Programme / scheme",b.programme),
+    _row(D,"Site location",d.geo?`${d.geo.centroid[0].toFixed(5)}°N, ${d.geo.centroid[1].toFixed(5)}°E`:"MISSING — load KML in Site tab"),
+    _row(D,"Site area",d.geo?`${f(d.geo.ha,2)} ha  (${f(d.geo.acres,1)} acres)`:"—"),
+    _row(D,"Total DC capacity",d.env?`${f(d.env.tot)} MWp  (FPV ${f(d.env.fpvMW)} + ground ${f(d.env.gmMW)})`:"—"),
+    _row(D,"Land status",b.landStatus),
+    _row(D,"Grid connection point",b.gridPoint||"MISSING — enter in Project Brief tab"),
+    _row(D,"Distance to grid",b.gridKm?b.gridKm+" km":"MISSING — TNB IAF-01 study required"),
+    _row(D,"Solar resource (GHI)",d.res?`${f(d.res.ghi,1)} kWh/m²/yr (${d.res.tierLabel})`:"MISSING — load in Sunshine tab"),
+    _row(D,"Specific yield",d.res?`${f(d.res.pvout,0)} kWh/kWp/yr`:"—"),
+    _row(D,"Report date",d.date),
+    _row(D,"Document version",b.version),
+    _row(D,"Prepared by",b.preparedBy),
+  ]));
+  C.push(new Paragraph({spacing:{before:120,after:40},children:[new TextRun({text:"Format follows the LSS4-era EPCC proposal precedent. Every figure marked MISSING awaits the LSS6 RFP, a TNB confirmation, or field work — nothing is invented. Screening grade: ±30–50%.",italics:true,size:18,color:"5B6B85"})]}));
   C.push(new Paragraph({children:[new PageBreak()]}));
   // 1 intro
   C.push(_h(D,"1  Introduction",1));
   C.push(_p(D,'The Government of Malaysia, through Suruhanjaya Tenaga, is expected to issue the LSS6 request for proposal (2,000 MW, BESS mandatory per the Deputy Prime Minister on 3 June 2026).'));
-  C.push(_missP(D,"ST RFP reference, capacity bands, BESS sizing rule and tariff mechanism.","awaiting LSS6 RFP"));
+  C.push(_p(D,`The Government of Malaysia, through Suruhanjaya Tenaga (ST), is expected to issue the ${b.programme} request for proposal. ${b.programme==="LSS6"?"Total capacity: 2,000 MW, BESS mandatory (Deputy Prime Minister, 3 June 2026).":""}`));
+  C.push(_missP(D,"ST RFP reference, capacity bands, BESS sizing rule and tariff mechanism.","awaiting RFP"));
   if(d.geo){
     let siteTxt="The site covers "+f(d.geo.ha,2)+" ha ("+f(d.geo.acres,1)+" acres), measured by shoelace method from the boundary file - centre "+d.geo.centroid[0].toFixed(5)+" N "+d.geo.centroid[1].toFixed(5)+" E, "+f(d.geo.ew)+" m x "+f(d.geo.ns)+" m, perimeter "+f(d.geo.perimeter/1000,2)+" km.";
     if(d.slope)siteTxt+=" Screening slope "+d.slope.stats.maxDeg.toFixed(1)+" deg max.";
@@ -1371,9 +1493,11 @@ async function makeTechProposal(d){
   C.push(_h(D,"Plant Description",2));
   C.push(_table(D,[
     _row(D,"Item","Value",true),
-    _row(D,"Location",d.name),
+    _row(D,"Location",b.projName+(d.geo?` (${d.geo.centroid[0].toFixed(4)}°N ${d.geo.centroid[1].toFixed(4)}°E)`:"") ),
+    _row(D,"Developer / SPV",b.devName||"MISSING"),
     _row(D,"Utility","Tenaga Nasional Berhad"),
-    _row(D,"Grid connection distance","MISSING — TNB nodal study"),
+    _row(D,"Grid connection point",b.gridPoint||"MISSING — TNB IAF-01 study"),
+    _row(D,"Distance to grid connection",b.gridKm?b.gridKm+" km":"MISSING — TNB nodal study"),
     _row(D,"Plant type",d.env&&d.env.fpvMW>0?"Hybrid floating + ground, with BESS":"Ground-mounted, with BESS"),
     _row(D,"Total DC capacity",d.env?`${f(d.env.tot)} MWp (FPV ${f(d.env.fpvMW)} + ground ${f(d.env.gmMW)})`:"—"),
     _row(D,"Site area",d.geo?`${f(d.geo.ha,2)} ha`:"—"),
@@ -1406,13 +1530,36 @@ async function makeTechProposal(d){
 }
 
 async function makeBoardPaper(d){
-  const D=window.docx;const{Document,Packer,Paragraph,TextRun}=D;const f=(x,n=0)=>fmt(x,n);
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
+  const b=d.brief;
   const C=[];
-  C.push(new Paragraph({spacing:{after:60},children:[new TextRun({text:"BOARD PAPER — FOR DECISION",bold:true,size:44,color:"0A1F44"})]}));
-  C.push(new Paragraph({spacing:{after:120},children:[new TextRun({text:`${d.name}${d.env?" · "+f(d.env.tot)+" MWp":""} · LSS6 candidacy`,size:24,bold:true,color:"1E3A6B"})]}));
-  C.push(new Paragraph({children:[new TextRun({text:`${d.date} · generated by SiteGate · CONFIDENTIAL`,italics:true,size:18,color:"5B6B85"})]}));
+  // ── COVER PAGE ──
+  C.push(new Paragraph({spacing:{before:560,after:80},alignment:AlignmentType.CENTER,children:[new TextRun({text:"BOARD PAPER",bold:true,size:56,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:"FOR DECISION",bold:true,size:32,color:"D94436",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{before:200,after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.projName.toUpperCase(),bold:true,size:28,color:"1E3A6B",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:`${b.programme} CANDIDACY${d.env?" · "+f(d.env.tot)+" MWp":""}`,size:22,color:"1E3A6B"})]}));
+  C.push(new Paragraph({spacing:{before:300,after:10},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.devName||"[DEVELOPER — ENTER IN PROJECT BRIEF]",size:22,bold:true,color:"0A1F44"})]}));
+  C.push(new Paragraph({spacing:{after:10},alignment:AlignmentType.CENTER,children:[new TextRun({text:`${d.date}  ·  ${b.version}  ·  CONFIDENTIAL`,italics:true,size:18,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:10},alignment:AlignmentType.CENTER,children:[new TextRun({text:"Prepared by: "+b.preparedBy,size:17,color:"5B6B85",italics:true})]}));
+  // ── PAGE 2: PROJECT PARTICULARS ──
+  C.push(_h(D,"PROJECT PARTICULARS",1));
+  C.push(_table(D,[
+    _row(D,"Item","Details",true),
+    _row(D,"Project name",b.projName),
+    _row(D,"Developer / SPV",b.devName||"MISSING"),
+    _row(D,"Programme / scheme",b.programme),
+    _row(D,"Site location",d.geo?`${d.geo.centroid[0].toFixed(5)}°N, ${d.geo.centroid[1].toFixed(5)}°E`:"MISSING"),
+    _row(D,"Site area",d.geo?`${f(d.geo.ha,2)} ha (${f(d.geo.acres,1)} acres)`:"MISSING"),
+    _row(D,"Land status",b.landStatus),
+    _row(D,"Grid connection point",b.gridPoint||"MISSING"),
+    _row(D,"Distance to grid",b.gridKm?b.gridKm+" km":"MISSING"),
+    _row(D,"Plant envelope",d.env?`${f(d.env.tot)} MWp (FPV ${f(d.env.fpvMW)} + ground ${f(d.env.gmMW)})`:"—"),
+    _row(D,"Report date",d.date),
+    _row(D,"Document version",b.version),
+    _row(D,"Prepared by",b.preparedBy),
+  ]));
   C.push(_h(D,"1  Decision sought",1));
-  C.push(_p(D,"Approve the Stage-2 verification budget of RM 150,000–400,000 to take this desk-screened site to bid-ready before the LSS6 RFP opens. Kill-fast: the land search and TNB's grid answer can each end the project for under RM 100,000."));
+  C.push(_p(D,"Approve the Stage-2 verification budget of RM 150,000–400,000 to take this desk-screened site to bid-ready before the RFP opens. Kill-fast: the land search and TNB's grid answer can each end the project for under RM 100,000."));
   C.push(_h(D,"2  The asset, in verified numbers",1));
   C.push(_table(D,[
     _row(D,"Item","Value (source)",true),
@@ -1420,7 +1567,8 @@ async function makeBoardPaper(d){
     _row(D,"Plant envelope",d.env?`${f(d.env.tot)} MWp (${f(d.env.fpvMW)} floating + ${f(d.env.gmMW)} ground)`:"MISSING"),
     _row(D,"Solar resource",d.res?`${f(d.res.ghi,1)} kWh/m²/yr · yield ${f(d.res.yLow)}–${f(d.res.yHigh)} (${d.res.tierLabel})`:"MISSING"),
     _row(D,"Terrain",d.slope?`max ${d.slope.stats.maxDeg.toFixed(1)}°, avg ${d.slope.stats.meanDeg.toFixed(1)}°`:"not checked"),
-    _row(D,"Route to revenue","LSS6 (2,000 MW, BESS compulsory) or CRESS corporate supply"),
+    _row(D,"Grid connection",b.gridPoint?(b.gridKm?b.gridKm+" km to ":"")+b.gridPoint:"MISSING — TNB IAF-01 study"),
+    _row(D,"Route to revenue",b.programme+(b.programme==="LSS6"?" (2,000 MW, BESS compulsory) or CRESS corporate supply":"")),
   ]));
   C.push(_h(D,"3  The money, at screening grade",1));
   if(d.fm){const fi=d.fm.inputs,o=d.fm.out;
