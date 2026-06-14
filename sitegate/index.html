@@ -752,59 +752,129 @@ async function fetchElevations(grid){
   }
   return grid;
 }
-// Attempt Sentinel-2 NDWI via a public WMS/tile service that allows CORS.
-// Strategy: sample the ESA WorldCover / Sentinel-2 cloudless NDWI is not directly tile-queryable
-// for a pixel value in-browser without auth. We instead query the open "s2maps" Sentinel-2 cloudless
-// is imagery only. So for an actual water index we use the free, CORS-enabled
-// "https://services.sentinel-hub.com" — which needs auth. Without a key, a true per-pixel NDWI
-// is not reliably available from file://. We therefore TRY one keyless route and otherwise
-// report NDWI as unavailable, falling back to the DEM proxy. We never fabricate an NDWI mask.
-async function tryNDWI(grid){
-  // Honest attempt: ESA WorldCover 10m land-cover via the free terrascope WMS GetFeatureInfo.
-  // Class 80 = "Permanent water bodies". This is a published, CORS-permitting service.
-  // If it fails (CORS/network), return null so caller uses the DEM proxy.
-  const inside=grid.cells.filter(c=>c.inside);
-  const sample=inside.filter((_,i)=>i%2===0); // subsample to limit calls
-  const water=new Set();let ok=0,tried=0;
-  const wmsBase="https://services.terrascope.be/wms/v2";
-  for(const c of sample){
-    tried++;
-    const d=0.00008; // ~9m half-box
-    const bbox=[c.lon-d,c.lat-d,c.lon+d,c.lat+d].join(",");
-    const url=wmsBase+"?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=WORLDCOVER_2021_MAP"+
-      "&QUERY_LAYERS=WORLDCOVER_2021_MAP&CRS=EPSG:4326&BBOX="+[c.lat-d,c.lon-d,c.lat+d,c.lon+d].join(",")+
-      "&WIDTH=3&HEIGHT=3&I=1&J=1&INFO_FORMAT=application/json&STYLES=";
-    try{
-      const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),8000);
-      const rs=await fetch(url,{signal:ctl.signal});clearTimeout(to);
-      if(!rs.ok)throw 0;
-      const j=await rs.json();ok++;
-      const val=JSON.stringify(j);
-      // WorldCover water class is 80
-      if(/\b80\b/.test(val))water.add(c.r*grid.N+c.c);
-    }catch(e){ /* this cell failed; continue */ }
-    if(grid.onProgress)grid.onProgress(tried,sample.length,"ndwi");
-    if(tried>=6 && ok===0)return null; // service clearly unreachable; bail to proxy fast
-  }
-  if(ok===0)return null;
-  // grow sampled water cells to neighbours we skipped (fill checkerboard) by inheriting from neighbours
-  const N=grid.N,grown=new Set(water);
-  water.forEach(id=>{const r=Math.floor(id/N),c=id%N;
-    [[r,c+1],[r,c-1],[r+1,c],[r-1,c]].forEach(([rr,cc])=>{const nk=rr*N+cc;
-      const cell=grid.cells[nk];if(cell&&cell.inside)grown.add(nk);});});
-  return {cells:grown,frac:grown.size/inside.length,reason:"ESA WorldCover 2021 (10 m, class 80 water)",ok,tried};
+/* ---------- WATER DETECTION (multi-source, automatic) ----------
+   The app must be the FIRST to spot a pond/lake/ex-mining pool and propose
+   floating PV — without the user telling it. We run THREE independent
+   detectors and union the result. Lower accuracy is acceptable; a missed
+   detection (silent 0% water) is not. Each cell flagged as water is mapped
+   back to the sample grid so the heat-map and FPV sizing pick it up.        */
+
+// (1) ESA WorldCover 2021 — ONE GetMap image for the whole site, classified
+// by pixel colour on a canvas. Class 80 (permanent water) renders as #0064C8.
+// A single request is far more robust than hundreds of GetFeatureInfo calls.
+function loadImg(url){return new Promise((res,rej)=>{
+  const im=new Image();im.crossOrigin="anonymous";
+  im.onload=()=>res(im);im.onerror=()=>rej(new Error("img load failed"));
+  im.src=url;});}
+async function tryWorldCoverImage(grid){
+  const {minLo,maxLo,minLa,maxLa,N}=grid;
+  const aspect=(maxLo-minLo)/Math.max(maxLa-minLa,1e-9);
+  let W=512,H=Math.round(W/Math.max(aspect,0.01));H=Math.max(64,Math.min(768,H));
+  const bbox=[minLa,minLo,maxLa,maxLo].join(","); // WMS 1.3.0 EPSG:4326 = lat,lon
+  const url="https://services.terrascope.be/wms/v2?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap"+
+    "&LAYERS=WORLDCOVER_2021_MAP&QUERY_LAYERS=WORLDCOVER_2021_MAP&CRS=EPSG:4326"+
+    "&BBOX="+bbox+"&WIDTH="+W+"&HEIGHT="+H+"&FORMAT=image/png&STYLES=";
+  const im=await loadImg(url);
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const ctx=cv.getContext("2d");ctx.drawImage(im,0,0,W,H);
+  let data;try{data=ctx.getImageData(0,0,W,H).data;}catch(e){return null;} // CORS taint
+  const isWater=(r,g,b)=>b>120&&b>r+40&&b>g+25;        // #0064C8 permanent water
+  const water=new Set();const inside=grid.cells.filter(c=>c.inside);
+  inside.forEach(c=>{
+    const px=Math.max(0,Math.min(W-1,Math.round((c.lon-minLo)/(maxLo-minLo)*(W-1))));
+    const py=Math.max(0,Math.min(H-1,Math.round((maxLa-c.lat)/(maxLa-minLa)*(H-1))));
+    // sample a small 3x3 neighbourhood — a cell counts as water if its centre pixel is water
+    const i=(py*W+px)*4;
+    if(isWater(data[i],data[i+1],data[i+2]))water.add(c.r*N+c.c);
+  });
+  return {cells:water,frac:water.size/Math.max(inside.length,1),
+    reason:"ESA WorldCover 2021 satellite land-cover (10 m)",src:"satellite"};
 }
+
+// (2) OpenStreetMap water polygons via Overpass — CORS-enabled JSON, very
+// reliable for mapped lakes, ponds, reservoirs and ex-mining pools.
+async function tryOSMWater(grid){
+  const {minLo,maxLo,minLa,maxLa,N}=grid;
+  const q=`[out:json][timeout:25];(`+
+    `way["natural"="water"](${minLa},${minLo},${maxLa},${maxLo});`+
+    `relation["natural"="water"](${minLa},${minLo},${maxLa},${maxLo});`+
+    `way["landuse"="reservoir"](${minLa},${minLo},${maxLa},${maxLo});`+
+    `way["water"](${minLa},${minLo},${maxLa},${maxLo});`+
+    `);out geom;`;
+  const eps=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"];
+  let j=null;
+  for(const ep of eps){
+    try{
+      const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),22000);
+      const rs=await fetch(ep,{method:"POST",signal:ctl.signal,
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)});
+      clearTimeout(to);
+      if(!rs.ok)continue;
+      j=await rs.json();break;
+    }catch(e){ /* try next mirror */ }
+  }
+  if(!j||!j.elements)return null;
+  // build polygon rings ([lon,lat]) from way geometries
+  const rings=[];
+  j.elements.forEach(el=>{
+    if(el.geometry&&el.geometry.length>2)rings.push(el.geometry.map(g=>[g.lon,g.lat]));
+    if(el.members)el.members.forEach(m=>{if(m.geometry&&m.geometry.length>2)rings.push(m.geometry.map(g=>[g.lon,g.lat]));});
+  });
+  if(!rings.length)return {cells:new Set(),frac:0,reason:"OpenStreetMap (no mapped water in bbox)",src:"osm-empty"};
+  const water=new Set();const inside=grid.cells.filter(c=>c.inside);
+  inside.forEach(c=>{
+    for(const ring of rings){if(pointInPolygon(c.lon,c.lat,ring)){water.add(c.r*N+c.c);break;}}
+  });
+  return {cells:water,frac:water.size/Math.max(inside.length,1),
+    reason:"OpenStreetMap mapped water bodies",src:"osm"};
+}
+
+// (3) Conservative DEM fallback — only fires when BOTH remote sources fail.
+// Gated to avoid the flat-farmland false positive: needs a sizeable (>=4% of
+// site) connected basin that sits meaningfully (>=1.5 m) below the site median.
+function waterProxyGated(grid){
+  const p=waterProxy(grid,{flatMax:1.6,lowQuantile:0.30});
+  const inside=grid.cells.filter(c=>c.inside&&isFinite(c.ele));
+  if(!p.cells.size||inside.length<12)return {cells:new Set(),frac:0,reason:"terrain proxy — no clear basin",src:"none"};
+  const eles=inside.map(c=>c.ele).sort((a,b)=>a-b);
+  const median=eles[Math.floor(eles.length/2)];
+  let sum=0,n=0;p.cells.forEach(id=>{const r=Math.floor(id/grid.N),c=id%grid.N;const cell=grid.cells[r*grid.N+c];if(cell&&isFinite(cell.ele)){sum+=cell.ele;n++;}});
+  const basinMean=n?sum/n:median;
+  const depth=median-basinMean;
+  const frac=p.cells.size/inside.length;
+  if(frac>=0.04 && depth>=1.5)
+    return {cells:p.cells,frac,reason:"terrain proxy — low flat basin (verify; satellite unreachable)",src:"proxy"};
+  return {cells:new Set(),frac:0,reason:"terrain proxy — no clear basin",src:"none"};
+}
+
 // Full pipeline: returns a profile + masks, runs in background.
 async function analyzeSite(coords,siteHa,N,onProgress){
   const grid=buildGrid(coords,N);grid.onProgress=onProgress;
   await fetchElevations(grid);
   cellSlopes(grid);
-  let water=null,waterSrc="";
-  try{ water=await tryNDWI(grid); }catch(e){ water=null; }
-  if(water&&water.cells.size>0){ waterSrc=water.reason; }
-  else { water={cells:new Set(),frac:0,reason:"no satellite data — set water fraction manually"}; waterSrc=water.reason; }
+  if(onProgress)onProgress(1,1,"water");
+  // Run the two remote detectors in parallel; never let one throw kill the other.
+  const settle=p=>p.then(v=>v).catch(()=>null);
+  const [wc,osm]=await Promise.all([settle(tryWorldCoverImage(grid)),settle(tryOSMWater(grid))]);
+  // Union whatever the remote sources found.
+  const union=new Set();const srcs=[];
+  if(wc&&wc.cells.size){wc.cells.forEach(x=>union.add(x));srcs.push("satellite");}
+  if(osm&&osm.cells.size){osm.cells.forEach(x=>union.add(x));srcs.push("OSM");}
+  let water;
+  if(union.size){
+    const inside=grid.cells.filter(c=>c.inside);
+    water={cells:union,frac:union.size/Math.max(inside.length,1),
+      reason:"Detected from "+srcs.join(" + ")+(srcs.length>1?" (combined)":""),src:"detected"};
+  } else if(wc||osm){
+    // remote sources reachable but found no water → trust them (genuinely dry site)
+    water={cells:new Set(),frac:0,reason:"No water found by satellite/OSM — site appears dry",src:"dry"};
+  } else {
+    // both remote sources unreachable → conservative DEM fallback
+    water=waterProxyGated(grid);
+  }
   const profile=terrainProfile(grid,siteHa,water.cells,10);
-  return {grid,waterCells:water.cells,waterSrc,waterFracDetected:water.frac,profile};
+  return {grid,waterCells:water.cells,waterSrc:water.reason,waterSrcKind:water.src,
+    waterFracDetected:water.frac,profile};
 }
 if(typeof module!=="undefined")module.exports={parseKMLCoords,computeGeometry,haversineKm,computeEnvelope,extractResourceFromSheets,extractResourceFromText,npvAt,irr,buildFM,pointInPolygon,slopeStats,buildGrid,cellSlopes,waterProxy,terrainProfile};
 
@@ -1056,32 +1126,43 @@ function svgOutline(g,overlayCells){
 function drawOverlay(){ $("siteOverlay").innerHTML=svgOutline(S.geo); }
 function terrainResultHTML(){
   const a=S.analysis,p=a.profile;
-  const ndwi=/WorldCover/.test(a.waterSrc);
+  const kind=a.waterSrcKind||"";
+  const detected=p.waterFrac>0;
+  const badge = kind==="detected" ? '<span class="tag good">SATELLITE / OSM</span>'
+    : kind==="proxy" ? '<span class="tag warn">TERRAIN PROXY</span>'
+    : kind==="dry" ? '<span class="tag navy">CHECKED — DRY</span>'
+    : '<span class="tag warn">UNVERIFIED</span>';
+  // Proactive FPV recommendation when water is detected
+  const fpvBanner = detected ? `<div class="callout" style="border-left-color:#1A6EA0;background:#EAF4FA;margin-top:10px">
+      <b>💧 Water body detected — floating PV (FPV) recommended.</b><br>
+      ${fmt(p.waterHa,1)} ha of water (${fmt(p.waterFrac*100,0)}% of the site) was found automatically from ${kind==="proxy"?"terrain analysis":"satellite land-cover / OpenStreetMap"}.
+      This area is now sized for floating solar in Plant Size. ${kind==="proxy"?"Satellite was unreachable, so this is a terrain estimate — please eyeball it on a map.":"Verify against recent imagery before committing."}
+    </div>` : (kind==="dry" ? `<p class="note" style="margin-top:8px">Satellite land-cover and OpenStreetMap were checked — no water body found, so the site is treated as ground-mount only. If you know there is a pond, set the water fraction manually in Plant Size.</p>` : "");
   return `
     <div class="stats" style="margin-top:10px">
       <div class="stat" style="background:linear-gradient(160deg,#1A6EA0,#155a85)"><div class="v">${fmt(p.waterHa,1)}<span class="u">ha</span></div><div class="k">Water — usable for FPV</div></div>
       <div class="stat gold"><div class="v">${fmt(p.landUsableHa,1)}<span class="u">ha</span></div><div class="k">Usable land (≤10°)</div></div>
       <div class="stat" style="background:linear-gradient(160deg,#D94436,#b5352a)"><div class="v">${fmt(p.steepHa,1)}<span class="u">ha</span></div><div class="k">Cut — slope &gt;10°</div></div>
     </div>
+    ${fpvBanner}
     <table style="margin-top:10px">
       <tr><td>Water bodies (pond/lake)</td><td>${fmt(p.waterFrac*100,0)}% of site · <b>${fmt(p.waterHa,1)} ha</b></td></tr>
       <tr><td>Land steeper than 10°</td><td>${fmt(p.steepFrac*100,0)}% of site · <b>${fmt(p.steepHa,1)} ha</b> (removed from usable)</td></tr>
       <tr><td>Flat usable land</td><td><b>${fmt(p.landUsableHa,1)} ha</b></td></tr>
-      <tr><td>Water source</td><td>${ndwi?'<span class="tag good">SATELLITE LAND-COVER</span>':'<span class="tag warn">TERRAIN PROXY</span>'} ${a.waterSrc}</td></tr>
+      <tr><td>Water source</td><td>${badge} ${a.waterSrc}</td></tr>
       <tr><td>Elevation</td><td><span class="tag navy">NASA SRTM 30 m</span> ${fmt(p.coverage*100,0)}% of cells sampled</td></tr>
     </table>
     <label class="fld" style="margin-top:12px;display:flex;align-items:center;gap:10px;cursor:pointer">
       <input type="checkbox" id="deductToggle" ${S.deductTerrain?"checked":""} style="width:auto">
       <span class="lb" style="margin:0">Feed this into Plant Size — use detected water for FPV, cut steep land from ground-mount</span>
-    </label>
-    ${ndwi?'':'<p class="note" style="margin-top:6px">Satellite land-cover service did not respond — water set to 0%. If the site has a pond or lake, set the water fraction manually in the Plant Size tab.</p>'}`;
+    </label>`;
 }
 function autoSlope(){
   if(!S.geo||!S.rawCoords)return;
   if(S.analysis||S._analyzing)return;
   S._analyzing=true;
   const N=Math.min(28,Math.max(16,Math.round(Math.sqrt(S.geo.ha*1.2))));
-  const onP=(done,total,phase)=>{const el=$("terrainStatus");if(el)el.textContent=`⟳ ${phase==="ndwi"?"Checking satellite land-cover for water":"Reading NASA elevation"}… ${done}/${total}`;};
+  const onP=(done,total,phase)=>{const el=$("terrainStatus");if(el)el.textContent=phase==="water"?"⟳ Scanning satellite land-cover & OpenStreetMap for water bodies…":`⟳ Reading NASA elevation… ${done}/${total}`;};
   analyzeSite(S.rawCoords,S.geo.ha,N,onP).then(a=>{
     S.analysis=a;S._analyzing=false;
     // keep the legacy single-number slope summary in sync for documents
