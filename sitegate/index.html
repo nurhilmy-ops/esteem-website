@@ -1061,6 +1061,25 @@ function parseAllKMLPolygons(kml){
   }
   return rings;
 }
+// Area of a single ring in hectares (shoelace + latitude correction).
+function ringAreaHa(ring){
+  let area=0;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    area+=(ring[j][0]+ring[i][0])*(ring[j][1]-ring[i][1]);
+  }
+  area=Math.abs(area)/2;
+  const mlat=ring.reduce((s,p)=>s+p[1],0)/ring.length;
+  const mcos=Math.cos(mlat*Math.PI/180);
+  return area*mcos*111319*111319/10000;
+}
+// Drop rings that are really the SITE BOUNDARY (or larger) rather than a lake.
+// A water body must be smaller than ~85% of the site; anything bigger is the
+// boundary polygon the user exported alongside the lakes.
+function filterWaterRings(rings,siteHa){
+  if(!siteHa)return rings;
+  const kept=rings.filter(r=>ringAreaHa(r) < siteHa*0.85);
+  return kept.length?kept:rings; // never return empty if the user clearly meant something
+}
 function applyWaterRingsToGrid(rings,grid){
   // returns a water cell Set by testing each inside cell against all rings
   const N=grid.N,water=new Set();
@@ -1090,13 +1109,17 @@ wireDrop($("waterKmlDrop"),$("waterKmlFile"),f=>{
   const r=new FileReader();
   r.onload=()=>{
     try{
-      const rings=parseAllKMLPolygons(r.result);
-      if(!rings.length)throw new Error("No polygon found in this KML.");
+      const allRings=parseAllKMLPolygons(r.result);
+      if(!allRings.length)throw new Error("No polygon found in this KML.");
+      // Remove the site-boundary polygon if it was exported alongside the lakes.
+      const rings=filterWaterRings(allRings,S.geo?S.geo.ha:0);
+      const dropped=allRings.length-rings.length;
       S.waterRings=rings;
       // Intersect with the analysis grid if available, else just report ha
       let waterHa=waterHaFromRings(rings,S.rawCoords);
       let msg=`<div class="callout" style="border-left-color:#1A6EA0;background:#EAF4FA">
         <b>💧 ${rings.length} water polygon${rings.length>1?"s":""} loaded — ${fmt(waterHa,1)} ha total.</b><br>
+        ${dropped>0?`<span style="color:#5B6B85">(${dropped} oversized polygon${dropped>1?"s":""} skipped — treated as the site boundary, not a lake.)</span><br>`:""}
         These will be used as ground truth for FPV sizing, overriding satellite detection.<br>`;
       if(S.analysis){
         // re-classify the existing analysis grid using the uploaded rings
