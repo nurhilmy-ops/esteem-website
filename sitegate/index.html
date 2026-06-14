@@ -291,6 +291,10 @@ tr:nth-child(even) td{background:#FAFBFD}
           <span class="lb">Energy capacity <span class="hint">MWh (2 h duration default)</span></span>
           <input type="number" id="br-bessMWh" placeholder="auto (2 × MW)" step="1" min="0">
         </label>
+        <label class="fld" id="br-bessCostWrap">
+          <span class="lb">BESS unit cost <span class="hint">RM million / MWh — enter your quote</span></span>
+          <input type="number" id="br-bessCostM" placeholder="no default — enter vendor quote" step="0.05" min="0">
+        </label>
       </div>
       <div class="divider"></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
@@ -955,10 +959,10 @@ const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analys
   waterRings:null}; // user-uploaded water body polygons (ground truth)
 
 /* ============ PROJECT BRIEF ============ */
-const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:'',bessYN:'yes',bessMW:'',bessMWh:''};
+const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:'',bessYN:'yes',bessMW:'',bessMWh:'',bessCostM:''};
 let B={...BRIEF_DEF};
 function initBrief(){
-  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate','bessMW','bessMWh'].forEach(k=>{
+  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate','bessMW','bessMWh','bessCostM'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||'';
@@ -981,7 +985,7 @@ function syncBriefDisplay(){
   if(B.projName)$("projPill").textContent=B.projName+(S.geo?" · "+fmt(S.geo.ha,1)+" ha":"");
   // show/hide BESS capacity fields
   const hasBess=!B.bessYN||B.bessYN==='yes';
-  ['br-bessCapWrap','br-bessEnergyWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=hasBess?'':'none';});
+  ['br-bessCapWrap','br-bessEnergyWrap','br-bessCostWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=hasBess?'':'none';});
   if(bessDisp)bessDisp.textContent='BESS: '+(hasBess?'Yes':'No');
 }
 document.addEventListener('DOMContentLoaded',()=>{initBrief();});
@@ -1458,8 +1462,9 @@ function fmInputs(){
   // BESS MWh: user-specified or auto (2h × 25% AC capacity)
   const mwac=S.env.tot/1.25;
   const bessMWh=hasBess?(B.bessMWh?parseFloat(B.bessMWh):Math.round(mwac*CONSULTANT.bess.hours)):0;
-  const bessCapexM=hasBess?bessMWh*CONSULTANT.bess.costPerMWh:0;
-  return {mwp:S.env.tot,yld:(S.res&&S.res.pvout)||1259,...fmState,bessCapexM,bessMWh,hasBess};
+  const bessCostM=B.bessCostM?parseFloat(B.bessCostM):null; // null = no quote entered
+  const bessCapexM=hasBess&&bessCostM?bessMWh*bessCostM:0;  // 0 if no cost provided
+  return {mwp:S.env.tot,yld:(S.res&&S.res.pvout)||1259,...fmState,bessCapexM,bessMWh,hasBess,bessCostM};
 }
 function calcMoney(){
   const inp=fmInputs();
@@ -1472,8 +1477,8 @@ function calcMoney(){
   const optTariff=solveTariff(inp,targetIRR);
   const bessLine=i.hasBess?`
       <tr><td>PV CAPEX</td><td class="mono">RM ${fmt(o.pvCapex/1e6,1)} m</td></tr>
-      <tr><td>BESS CAPEX (${fmt(i.bessMWh,0)} MWh × RM ${CONSULTANT.bess.costPerMWh}m/MWh)</td><td class="mono">RM ${fmt(o.bessCapex/1e6,1)} m</td></tr>
-      <tr><td>Total CAPEX (PV + BESS)</td><td class="mono"><b>RM ${fmt(o.capex/1e6,0)} m</b></td></tr>`
+      <tr><td>BESS (${fmt(i.bessMWh,0)} MWh)</td><td class="mono">${i.bessCostM?`RM ${fmt(o.bessCapex/1e6,1)} m  <span style="color:#5B6B85;font-size:12px">@ RM ${i.bessCostM}m/MWh</span>`:'<span class="tag warn">NO COST — enter vendor quote in Project tab</span>'}</td></tr>
+      <tr><td>Total CAPEX (PV + BESS)</td><td class="mono"><b>RM ${fmt(o.capex/1e6,0)} m</b>${!i.bessCostM?' <span style="color:#B5860B;font-size:12px">(BESS excl. — no quote)</span>':''}</td></tr>`
     :`<tr><td>CAPEX (PV only)</td><td class="mono">RM ${fmt(o.capex/1e6,0)} m</td></tr>`;
   $("moneyOut").innerHTML=`
     <div class="stats">
@@ -1484,8 +1489,9 @@ function calcMoney(){
     </div>
     ${optTariff!=null?`<div class="callout" style="border-left-color:#F5C518;background:#FFFBEA">
       <b>Optimum tariff for ${targetIRR}% equity IRR: ${optTariff} sen/kWh</b><br>
-      <span style="font-size:13px;color:#5B6B85">At ${i.tariffSen} sen/kWh${i.hasBess?" with BESS":""}, equity IRR = ${o.eqIRR==null?"n/a":fmt(o.eqIRR*100,1)+"%"}.
-      ${optTariff>i.tariffSen?`Need ${fmt(optTariff-i.tariffSen,1)} sen more than current assumption.`:`Current tariff already exceeds target — ${fmt(i.tariffSen-optTariff,1)} sen of headroom.`}</span>
+      <span style="font-size:13px;color:#5B6B85">At ${i.tariffSen} sen/kWh, equity IRR = ${o.eqIRR==null?"n/a":fmt(o.eqIRR*100,1)+"%"}.
+      ${optTariff>i.tariffSen?`Need ${fmt(optTariff-i.tariffSen,1)} sen more than current assumption.`:`Current tariff already exceeds target — ${fmt(i.tariffSen-optTariff,1)} sen of headroom.`}
+      ${i.hasBess&&!i.bessCostM?' <b style="color:#B5860B">Note: BESS cost not entered — tariff based on PV only. Enter vendor quote in Project tab for a complete figure.</b>':i.hasBess?' BESS cost included ('+i.bessCostM+' RM m/MWh).':''}</span>
     </div>`:""}
     <table style="margin-top:12px">
       ${bessLine}
@@ -1705,7 +1711,6 @@ const CONSULTANT={
     note:"String inverters chosen over central: finer MPPT granularity, modular O&M, better partial-shade and terrain tolerance, no single large point of failure. ~320–350 kW, 1500 Vdc, IP66."},
   bess:{tech:"Lithium Iron Phosphate (LFP), liquid-cooled containerised",
     cont:"~5 MWh per 20-ft unit, integrated PCS, 1500 Vdc",cRate:0.5,hours:2,
-    costPerMWh:1.8, // RM million/MWh — 2026 LFP screening cost (ex-works + installation)
     note:"LFP is the safest/most bankable chemistry for grid BESS. Liquid cooling for Malaysian ambient. Sizing pending LSS6 RFP — assume 2-hour duration at the AC rating as a placeholder."},
   boxTx:{ratio:"0.8/33 kV",type:"Inverter-duty box transformer, ONAN, hermetically sealed",kvaPerMw:1100},
   mainTx:{type:"Outdoor oil-immersed, ONAN, OLTC, conservator",vector:"YNd1"},
@@ -2413,7 +2418,8 @@ async function makeTechProposal(d){
   C.push(H2("6.1  Capital Expenditure (CAPEX)"));
   if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
     const optT6=solveTariff(fi,fi.hurdle);
-    C.push(P(`Total project CAPEX is estimated at RM ${f(o.capex/1e6,0)} million, comprising the PV plant at RM ${f(o.pvCapex/1e6,1)} million (RM ${fi.capexPM}m/MWp + ${fi.contPct}% contingency)${fi.hasBess?` and the BESS at RM ${f(o.bessCapex/1e6,1)} million (${f(fi.bessMWh,0)} MWh × RM ${CONSULTANT.bess.costPerMWh}m/MWh, LFP, 2026 screening rate)`:""}.`));
+    const bessCostNote=fi.hasBess?(fi.bessCostM?` and the BESS at RM ${f(o.bessCapex/1e6,1)} million (${f(fi.bessMWh,0)} MWh × RM ${fi.bessCostM}m/MWh client-quoted rate, LFP containerised)`:" — BESS cost not entered; add vendor quote in Project tab to include in CAPEX"):"";
+    C.push(P(`Total project CAPEX is estimated at RM ${f(o.capex/1e6,0)} million, comprising the PV plant at RM ${f(o.pvCapex/1e6,1)} million (RM ${fi.capexPM}m/MWp + ${fi.contPct}% contingency)${bessCostNote}.`));
     const pvBase=o.pvCapex;
     const pvSplits=[["PV modules (TOPCon bifacial, supply & freight)",0.41],["String inverters",0.09],["Mounting structures & driven piles",0.11],
       ["DC cabling, combiners & connectors",0.05],["AC LV cabling & BoP",0.03],
@@ -2423,7 +2429,7 @@ async function makeTechProposal(d){
     C.push(TBL([ROW3("Cost centre","RM million","% of PV CAPEX",50,25,true),
       ...pvSplits.map(([label,pct])=>ROW3(label,f(pvBase*pct,1),f(pct*100,0)+"%")),
       ROW3("PV plant sub-total",f(pvBase/1e6,1),"100%"),
-      ...(fi.hasBess?[ROW3("BESS ("+f(fi.bessMWh,0)+" MWh LFP @ RM "+CONSULTANT.bess.costPerMWh+"m/MWh)",f(o.bessCapex/1e6,1),"—")]:[]),
+      ...(fi.hasBess?[ROW3("BESS ("+f(fi.bessMWh,0)+" MWh LFP"+(fi.bessCostM?" @ RM "+fi.bessCostM+"m/MWh":"")+")",fi.bessCostM?f(o.bessCapex/1e6,1):"MISSING — no quote","—")]:[]),
       ROW3("TOTAL PROJECT CAPEX",f(o.capex/1e6,1),fi.hasBess?"PV + BESS":"—"),
     ]));
     C.push(H2("6.2  Revenue & Tariff"));
@@ -2433,7 +2439,7 @@ async function makeTechProposal(d){
     C.push(TBL([
       ROW2("Financial metric","Screening value",true),
       ROW2("PV plant CAPEX",`RM ${f(o.pvCapex/1e6,1)} million`),
-      ...(fi.hasBess?[ROW2("BESS CAPEX ("+f(fi.bessMWh,0)+" MWh LFP)",`RM ${f(o.bessCapex/1e6,1)} million`)]:[]),
+      ...(fi.hasBess?[ROW2("BESS CAPEX ("+f(fi.bessMWh,0)+" MWh LFP"+(fi.bessCostM?" @ RM "+fi.bessCostM+"m/MWh":"— no quote entered")+")",fi.bessCostM?`RM ${f(o.bessCapex/1e6,1)} million`:"MISSING")]:[]),
       ROW2("Total project CAPEX",`RM ${f(o.capex/1e6,0)} million`),
       ROW2("Equity contribution ("+fi.gearPct+"% debt)", `RM ${f(o.equity/1e6,0)} million  (${100-fi.gearPct}% of CAPEX)`),
       ROW2("Term loan","RM "+f((o.capex-o.equity)/1e6,0)+" million @ "+fi.intPct+"% p.a. × "+fi.tenor+" years"),
