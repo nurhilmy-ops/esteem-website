@@ -297,6 +297,22 @@ tr:nth-child(even) td{background:#FAFBFD}
       </div>
       <div id="siteResult"></div>
     </div>
+    <div class="card" id="waterKmlCard" style="display:none">
+      <h2>Water bodies <span style="font-size:14px;font-weight:500;color:var(--muted);font-family:Inter">optional — highest accuracy</span></h2>
+      <p class="lead">If you have already drawn the individual pond / lake polygons in Google Earth, upload that KML here. The system will use them as ground truth instead of satellite auto-detection, giving you exact FPV sizing.</p>
+      <div class="card-row" style="align-items:start">
+        <div class="dropzone" id="waterKmlDrop" style="min-height:90px">
+          <div class="big">💧</div>
+          <b>Drop water bodies KML</b> or click
+          <div class="note" style="margin-top:4px">Each polygon = one lake / pond / ex-mining pool</div>
+          <input type="file" id="waterKmlFile" accept=".kml" hidden>
+        </div>
+        <div id="waterKmlResult" style="padding:6px 0">
+          <p class="note" style="margin-top:0">In Google Earth: draw each lake as a polygon, save all as one KML, then drop it here.<br>
+          The app will count the total water area within your site boundary and set the FPV fraction automatically.</p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 2 SUN -->
@@ -853,7 +869,21 @@ async function analyzeSite(coords,siteHa,N,onProgress){
   await fetchElevations(grid);
   cellSlopes(grid);
   if(onProgress)onProgress(1,1,"water");
-  // Run the two remote detectors in parallel; never let one throw kill the other.
+
+  // Priority 0: user-uploaded water body KML polygons (ground truth, most accurate)
+  if(S.waterRings&&S.waterRings.length){
+    const wc=applyWaterRingsToGrid(S.waterRings,grid);
+    const inside=grid.cells.filter(c=>c.inside);
+    const frac=wc.size/Math.max(inside.length,1);
+    const water={cells:wc,frac,
+      reason:S.waterRings.length+" water polygon"+(S.waterRings.length>1?"s":"")+" from user KML (ground truth)",
+      src:"user-kml"};
+    const profile=terrainProfile(grid,siteHa,water.cells,10);
+    return {grid,waterCells:water.cells,waterSrc:water.reason,waterSrcKind:water.src,
+      waterFracDetected:water.frac,profile};
+  }
+
+  // Priority 1 & 2: satellite + OSM auto-detection (run in parallel)
   const settle=p=>p.then(v=>v).catch(()=>null);
   const [wc,osm]=await Promise.all([settle(tryWorldCoverImage(grid)),settle(tryOSMWater(grid))]);
   // Union whatever the remote sources found.
@@ -886,7 +916,8 @@ $("modalX").onclick=()=>$("modalBg").classList.remove("show");
 $("modalBg").onclick=e=>{if(e.target===$("modalBg"))$("modalBg").classList.remove("show");};
 
 /* ============ state ============ */
-const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analysis:null,deductTerrain:true,_analyzing:false};
+const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analysis:null,deductTerrain:true,_analyzing:false,
+  waterRings:null}; // user-uploaded water body polygons (ground truth)
 
 /* ============ PROJECT BRIEF ============ */
 const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:''};
@@ -1010,13 +1041,86 @@ wireDrop($("kmlDrop"),$("kmlFile"),f=>{
       S.rawCoords=coords;S.geo=computeGeometry(coords);S.geo.ring=coords;
       S.name=(r.result.match(/<name>([^<]+)<\/name>/)||[])[1]||f.name.replace(/\.kml$/i,"")||"Site";
       $("projPill").textContent=S.name+" · "+fmt(S.geo.ha,1)+" ha";
+      $("waterKmlCard").style.display="";  // reveal the water KML card once site is loaded
       renderSite();
       autoSlope();
     }catch(e){showModal("Could not read that KML",`<p>${e.message}</p>`);}
   };
   r.readAsText(f);
 });
-/* renderSite, svgOutline, autoSlope moved to site_render.js */
+
+// ── Water bodies KML (optional, ground-truth) ──
+// Parses ALL polygon rings in the KML and returns them as [[lon,lat],…] arrays.
+function parseAllKMLPolygons(kml){
+  const rings=[];
+  // match every <coordinates> block
+  const re=/<coordinates>([\s\S]*?)<\/coordinates>/g;let m;
+  while((m=re.exec(kml))!==null){
+    const pts=m[1].trim().split(/\s+/).map(t=>{const p=t.split(",");return p.length>=2?[parseFloat(p[0]),parseFloat(p[1])]:null}).filter(Boolean);
+    if(pts.length>=3)rings.push(pts);
+  }
+  return rings;
+}
+function applyWaterRingsToGrid(rings,grid){
+  // returns a water cell Set by testing each inside cell against all rings
+  const N=grid.N,water=new Set();
+  grid.cells.filter(c=>c.inside).forEach(c=>{
+    for(const ring of rings){if(pointInPolygon(c.lon,c.lat,ring)){water.add(c.r*N+c.c);break;}}
+  });
+  return water;
+}
+function waterHaFromRings(rings,siteCoords){
+  // sum polygon areas for rings that overlap the site, in ha
+  let total=0;
+  rings.forEach(ring=>{
+    // shoelace area in deg²; convert using mean lat cosine
+    let area=0;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      area+=(ring[j][0]+ring[i][0])*(ring[j][1]-ring[i][1]);
+    }
+    area=Math.abs(area)/2;
+    const mlat=ring.reduce((s,p)=>s+p[1],0)/ring.length;
+    const ha=area*Math.cos(mlat*Math.PI/180)*111319*111319/10000;
+    total+=ha;
+  });
+  return total;
+}
+wireDrop($("waterKmlDrop"),$("waterKmlFile"),f=>{
+  if(!S.geo||!S.rawCoords){showModal("Load site first","<p>Drop the site boundary KML before adding water bodies.</p>");return;}
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const rings=parseAllKMLPolygons(r.result);
+      if(!rings.length)throw new Error("No polygon found in this KML.");
+      S.waterRings=rings;
+      // Intersect with the analysis grid if available, else just report ha
+      let waterHa=waterHaFromRings(rings,S.rawCoords);
+      let msg=`<div class="callout" style="border-left-color:#1A6EA0;background:#EAF4FA">
+        <b>💧 ${rings.length} water polygon${rings.length>1?"s":""} loaded — ${fmt(waterHa,1)} ha total.</b><br>
+        These will be used as ground truth for FPV sizing, overriding satellite detection.<br>`;
+      if(S.analysis){
+        // re-classify the existing analysis grid using the uploaded rings
+        const wc=applyWaterRingsToGrid(rings,S.analysis.grid);
+        const inside=S.analysis.grid.cells.filter(c=>c.inside).length;
+        const wfrac=wc.size/Math.max(inside,1);
+        S.analysis.waterCells=wc;
+        S.analysis.waterFracDetected=wfrac;
+        S.analysis.waterSrc=rings.length+" water polygon"+(rings.length>1?"s":"")+" from user KML (ground truth)";
+        S.analysis.waterSrcKind="user-kml";
+        S.analysis.profile=terrainProfile(S.analysis.grid,S.geo.ha,wc,10);
+        if(S.deductTerrain)applyDetectedToSize();
+        drawOverlay();
+        $("terrainResult").innerHTML=terrainResultHTML();wireDeduct();
+        msg+=`Grid updated: ${fmt(wfrac*100,0)}% of cells now classified as water.`;
+      } else {
+        msg+="Terrain scan still running — water polygons will be applied when it completes.";
+      }
+      msg+="</div>";
+      $("waterKmlResult").innerHTML=msg;
+    }catch(e){showModal("Could not read that KML",`<p>${e.message}</p>`);}
+  };
+  r.readAsText(f);
+});
 
 
 /* ============ 2. SUN ============ */
@@ -1112,15 +1216,25 @@ function svgOutline(g,overlayCells){
     });
   }
   let d=pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Yy(p[1]).toFixed(1)).join(" ")+"Z";
+  // Draw user-uploaded water body rings as precise outlines on top
+  let waterRingSVG="";
+  if(S.waterRings&&S.waterRings.length){
+    S.waterRings.forEach(ring=>{
+      const rd=ring.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Yy(p[1]).toFixed(1)).join(" ")+"Z";
+      waterRingSVG+=`<path d="${rd}" fill="rgba(26,110,160,.30)" stroke="#1A6EA0" stroke-width="1.5" stroke-dasharray="4 2"/>`;
+    });
+  }
   const legend=S.analysis?`
     <g font-family="Inter,Arial" font-size="11">
       <rect x="${pad}" y="${H-16}" width="11" height="11" fill="rgba(26,110,160,.78)"/><text x="${pad+15}" y="${H-7}" fill="#0A1F44">Water (FPV)</text>
       <rect x="${pad+95}" y="${H-16}" width="11" height="11" fill="rgba(245,197,24,.6)"/><text x="${pad+110}" y="${H-7}" fill="#0A1F44">Usable land</text>
       <rect x="${pad+205}" y="${H-16}" width="11" height="11" fill="rgba(217,68,54,.72)"/><text x="${pad+220}" y="${H-7}" fill="#0A1F44">Slope &gt;10° (cut)</text>
+      ${S.waterRings&&S.waterRings.length?`<rect x="${pad+315}" y="${H-16}" width="11" height="11" fill="rgba(26,110,160,.30)" stroke="#1A6EA0" stroke-width="1.5"/><text x="${pad+330}" y="${H-7}" fill="#1A6EA0">Your lake outlines</text>`:""}
     </g>`:"";
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:#F7F9FC;border-radius:8px">
     ${cellSVG}
     <path d="${d}" fill="${S.analysis?'none':'rgba(245,197,24,.18)'}" stroke="#0A1F44" stroke-width="2"/>
+    ${waterRingSVG}
     ${legend}</svg>`;
 }
 function drawOverlay(){ $("siteOverlay").innerHTML=svgOutline(S.geo); }
@@ -1128,16 +1242,20 @@ function terrainResultHTML(){
   const a=S.analysis,p=a.profile;
   const kind=a.waterSrcKind||"";
   const detected=p.waterFrac>0;
-  const badge = kind==="detected" ? '<span class="tag good">SATELLITE / OSM</span>'
+  const badge = kind==="user-kml" ? '<span class="tag good">USER KML — GROUND TRUTH</span>'
+    : kind==="detected" ? '<span class="tag good">SATELLITE / OSM</span>'
     : kind==="proxy" ? '<span class="tag warn">TERRAIN PROXY</span>'
     : kind==="dry" ? '<span class="tag navy">CHECKED — DRY</span>'
     : '<span class="tag warn">UNVERIFIED</span>';
   // Proactive FPV recommendation when water is detected
+  const srcDesc = kind==="user-kml" ? "your uploaded lake polygons (ground truth — highest accuracy)"
+    : kind==="proxy" ? "terrain analysis (satellite unreachable)"
+    : "satellite land-cover / OpenStreetMap";
   const fpvBanner = detected ? `<div class="callout" style="border-left-color:#1A6EA0;background:#EAF4FA;margin-top:10px">
       <b>💧 Water body detected — floating PV (FPV) recommended.</b><br>
-      ${fmt(p.waterHa,1)} ha of water (${fmt(p.waterFrac*100,0)}% of the site) was found automatically from ${kind==="proxy"?"terrain analysis":"satellite land-cover / OpenStreetMap"}.
-      This area is now sized for floating solar in Plant Size. ${kind==="proxy"?"Satellite was unreachable, so this is a terrain estimate — please eyeball it on a map.":"Verify against recent imagery before committing."}
-    </div>` : (kind==="dry" ? `<p class="note" style="margin-top:8px">Satellite land-cover and OpenStreetMap were checked — no water body found, so the site is treated as ground-mount only. If you know there is a pond, set the water fraction manually in Plant Size.</p>` : "");
+      ${fmt(p.waterHa,1)} ha of water (${fmt(p.waterFrac*100,0)}% of the site) was identified from ${srcDesc}.
+      This area has been set as floating solar in Plant Size. ${kind==="proxy"?"Satellite was unreachable — please verify on a map.":kind==="detected"?"Verify against recent imagery before committing.":""}
+    </div>` : (kind==="dry" ? `<p class="note" style="margin-top:8px">Satellite land-cover and OpenStreetMap were checked — no water body found. If you have drawn the lakes in Google Earth, upload the KML using the Water Bodies card above to get exact FPV sizing.</p>` : "");
   return `
     <div class="stats" style="margin-top:10px">
       <div class="stat" style="background:linear-gradient(160deg,#1A6EA0,#155a85)"><div class="v">${fmt(p.waterHa,1)}<span class="u">ha</span></div><div class="k">Water — usable for FPV</div></div>
@@ -1455,16 +1573,18 @@ function flagSummary(){
 }
 
 /* ============ session save/load ============ */
-function snapshot(){return {v:3,name:S.name,geo:S.geo,slope:S.slope,res:S.res,env:S.env,fm:S.fm,flags:S.flags,sizeState,fmState,brief:B};}
+function snapshot(){return {v:4,name:S.name,geo:S.geo,slope:S.slope,res:S.res,env:S.env,fm:S.fm,flags:S.flags,sizeState,fmState,brief:B,waterRings:S.waterRings||null};}
 $("saveSession").onclick=()=>{
   const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(S.name||"site").replace(/[^A-Za-z0-9_-]+/g,"_")+".sitegate.json";a.click();
 };
 function loadSnapshot(o){
   Object.assign(S,{name:o.name,geo:o.geo,slope:o.slope,res:o.res,env:o.env,fm:o.fm,flags:o.flags||{}});
+  if(o.waterRings)S.waterRings=o.waterRings;
   if(o.sizeState)sizeState=o.sizeState;if(o.fmState)fmState=o.fmState;
   if(o.brief)Object.assign(B,o.brief);
-  if(S.name&&S.geo)$("projPill").textContent=(B.projName||S.name)+" · "+fmt(S.geo.ha,1)+" ha";
+  if(S.name&&S.geo){$("projPill").textContent=(B.projName||S.name)+" · "+fmt(S.geo.ha,1)+" ha";
+    if(S.geo)$("waterKmlCard").style.display="";}
   ["sizeSliders","moneyInputs","flagsTbl"].forEach(id=>{if($(id))delete $(id).dataset.built;});
   initBrief();renderSite();renderSun();autoSlope();
 }
