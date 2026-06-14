@@ -1498,6 +1498,236 @@ function opexBreakdown(d){
   return {annualOpex,perMwp,rows,opexPct:fi.opexPct,mwp:fi.mwp};
 }
 
+/* ============ CHART / ILLUSTRATION HELPERS (canvas → docx PNG) ============ */
+async function _c2img(cv){return new Promise(r=>cv.toBlob(b=>b.arrayBuffer().then(a=>r(new Uint8Array(a))),'image/png'));}
+function _mkc(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+function _rr(ctx,x,y,w,h,r){if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h);}
+
+async function chartMonthlyEnergy(d){
+  if(!d.fm||!d.env)return null;
+  const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const FR=[0.084,0.079,0.090,0.085,0.086,0.079,0.084,0.086,0.082,0.083,0.080,0.082];
+  const ann=d.fm.inputs.mwp*d.fm.inputs.yld/1000;
+  const vals=FR.map(f=>+(ann*f).toFixed(2));
+  const W=680,H=310,ml=66,mr=18,mt=46,mb=58,iw=W-ml-mr,ih=H-mt-mb;
+  const mx=Math.max(...vals)*1.2;
+  const bw=iw/12*0.62;
+  const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  for(let g=0;g<=5;g++){const y=mt+ih*(1-g/5),v=mx*g/5;
+    ctx.strokeStyle='#E3E9F2';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ml,y);ctx.lineTo(W-mr,y);ctx.stroke();
+    ctx.fillStyle='#5B6B85';ctx.font='11px Arial';ctx.textAlign='right';ctx.fillText(v.toFixed(1),ml-5,y+4);}
+  MO.forEach((m,i)=>{
+    const x=ml+(i+0.5)*iw/12-bw/2,bh=ih*vals[i]/mx,y=mt+ih-bh;
+    const gr=ctx.createLinearGradient(x,y,x,y+bh);gr.addColorStop(0,'#F5C518');gr.addColorStop(1,'#E0A600');
+    ctx.fillStyle=gr;ctx.beginPath();_rr(ctx,x,y,bw,bh,3);ctx.fill();
+    ctx.strokeStyle='#C89800';ctx.lineWidth=0.5;ctx.stroke();
+    ctx.fillStyle='#0A1F44';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText(m,x+bw/2,mt+ih+16);
+    ctx.fillStyle='#1E3A6B';ctx.font='bold 9px Arial';ctx.fillText(vals[i].toFixed(1),x+bw/2,y-4);});
+  ctx.fillStyle='#5B6B85';ctx.font='11px Arial';ctx.textAlign='center';ctx.save();ctx.translate(16,mt+ih/2);ctx.rotate(-Math.PI/2);ctx.fillText('GWh / month',0,0);ctx.restore();
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';
+  ctx.fillText('Estimated Monthly Energy Generation — '+d.fm.inputs.mwp.toFixed(0)+' MWp Plant',W/2,22);
+  ctx.fillStyle='#5B6B85';ctx.font='11px Arial';ctx.fillText('Annual total: '+ann.toFixed(0)+' GWh  (yield '+d.fm.inputs.yld.toFixed(0)+' kWh/kWp/yr)',W/2,H-10);
+  return _c2img(cv);
+}
+
+async function chartIRR(d){
+  if(!d.fm)return null;
+  const fi=d.fm.inputs;
+  const tArr=[];for(let t=Math.max(10,Math.round(fi.tariffSen)-5);t<=Math.round(fi.tariffSen)+6;t++)tArr.push(t);
+  const irrV=tArr.map(t=>{const o=buildFM({...fi,tariffSen:t});return o.eqIRR==null?NaN:o.eqIRR*100;});
+  const hurdle=fi.hurdle;
+  const W=680,H=280,ml=62,mr=18,mt=46,mb=50,iw=W-ml-mr,ih=H-mt-mb;
+  const all=[...irrV,hurdle].filter(isFinite);
+  const mx=Math.max(...all)+3,mn=Math.min(...all)-3;
+  const X=i=>ml+i/(tArr.length-1)*iw,Y=v=>mt+ih-((v-mn)/(mx-mn))*ih;
+  const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  for(let g=0;g<=4;g++){const y=mt+ih*(1-g/4),v=mn+(mx-mn)*g/4;
+    ctx.strokeStyle='#E3E9F2';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ml,y);ctx.lineTo(W-mr,y);ctx.stroke();
+    ctx.fillStyle='#5B6B85';ctx.font='11px Arial';ctx.textAlign='right';ctx.fillText(v.toFixed(0)+'%',ml-5,y+4);}
+  // hurdle dash
+  ctx.strokeStyle='#D94436';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+  ctx.beginPath();ctx.moveTo(ml,Y(hurdle));ctx.lineTo(W-mr,Y(hurdle));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#D94436';ctx.font='bold 10px Arial';ctx.textAlign='left';ctx.fillText(hurdle+'% hurdle',ml+4,Y(hurdle)-6);
+  // shaded zone above hurdle
+  ctx.fillStyle='rgba(31,157,107,0.07)';ctx.fillRect(ml,mt,iw,Y(hurdle)-mt);
+  // IRR line
+  ctx.strokeStyle='#F5C518';ctx.lineWidth=2.5;ctx.shadowColor='rgba(0,0,0,0.15)';ctx.shadowBlur=3;
+  ctx.beginPath();let first=true;irrV.forEach((v,i)=>{if(!isFinite(v))return;first?(ctx.moveTo(X(i),Y(v)),first=false):ctx.lineTo(X(i),Y(v));});ctx.stroke();ctx.shadowBlur=0;
+  irrV.forEach((v,i)=>{if(!isFinite(v))return;ctx.fillStyle=v>=hurdle?'#1F9D6B':'#D94436';ctx.beginPath();ctx.arc(X(i),Y(v),4.5,0,Math.PI*2);ctx.fill();});
+  tArr.forEach((t,i)=>{ctx.fillStyle='#0A1F44';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText(t,X(i),mt+ih+16);});
+  ctx.fillStyle='#5B6B85';ctx.font='11px Arial';ctx.textAlign='center';ctx.fillText('Tariff (sen/kWh)',ml+iw/2,H-8);
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText('Equity IRR vs Feed-in Tariff  (green dots = clears '+hurdle+'% hurdle)',W/2,22);
+  return _c2img(cv);
+}
+
+async function chartTornado(d){
+  if(!d.fm)return null;
+  const fi=d.fm.inputs;
+  const baseIRR=(buildFM(fi).eqIRR||0)*100;
+  const levers=[{label:'Tariff',key:'tariffSen'},{label:'Build cost (CAPEX)',key:'capexPM'},{label:'OPEX %',key:'opexPct'},{label:'Interest rate',key:'intPct'}];
+  const rows=levers.map(l=>{
+    const lo=(buildFM({...fi,[l.key]:fi[l.key]*0.8}).eqIRR||0)*100;
+    const hi=(buildFM({...fi,[l.key]:fi[l.key]*1.2}).eqIRR||0)*100;
+    return{label:l.label,lo,hi};}).sort((a,b)=>Math.abs(b.hi-b.lo)-Math.abs(a.hi-a.lo));
+  const rH=40,lw=130,pad=14,W=560,H=pad*2+rows.length*rH+60;
+  const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  const iw=W-lw-pad*2;
+  const all=[...rows.map(r=>r.lo),...rows.map(r=>r.hi),baseIRR].filter(isFinite);
+  const mn=Math.min(...all)-1,mx=Math.max(...all)+1;
+  const X=v=>lw+(v-mn)/(mx-mn)*iw,bX=X(baseIRR);
+  // base line
+  ctx.strokeStyle='#0A1F44';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(bX,42);ctx.lineTo(bX,H-pad);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#0A1F44';ctx.font='9px Arial';ctx.textAlign='center';ctx.fillText('base '+baseIRR.toFixed(1)+'%',bX,38);
+  rows.forEach((r,i)=>{
+    const y=pad+44+i*rH;const bh=rH-10;
+    const x1=X(Math.min(r.lo,r.hi)),x2=X(Math.max(r.lo,r.hi));
+    // red (downside) side of base
+    if(x1<bX){ctx.fillStyle='rgba(217,68,54,0.85)';ctx.fillRect(x1,y,Math.min(bX,x2)-x1,bh);}
+    // green (upside) side of base
+    if(x2>bX){ctx.fillStyle='rgba(31,157,107,0.85)';ctx.fillRect(Math.max(bX,x1),y,x2-Math.max(bX,x1),bh);}
+    ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=0.5;ctx.strokeRect(x1,y,x2-x1,bh);
+    ctx.fillStyle='#0A1F44';ctx.font='bold 11px Arial';ctx.textAlign='right';ctx.fillText(r.label,lw-6,y+bh/2+4);
+    ctx.fillStyle='#FFFFFF';ctx.font='bold 9px Arial';ctx.textAlign='center';
+    if(bX-x1>24)ctx.fillText(r.lo.toFixed(1)+'%',x1+(bX-x1)/2,y+bh/2+4);
+    if(x2-bX>24)ctx.fillText(r.hi.toFixed(1)+'%',bX+(x2-bX)/2,y+bh/2+4);});
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';
+  ctx.fillText('IRR Sensitivity Tornado  (±20% on each lever)',W/2,20);
+  ctx.fillStyle='#5B6B85';ctx.font='9.5px Arial';ctx.textAlign='center';
+  ctx.fillText('Green = upside vs base   Red = downside vs base   Base equity IRR: '+baseIRR.toFixed(1)+'%',W/2,H-4);
+  return _c2img(cv);
+}
+
+async function chartProjectFlow(){
+  const W=680,H=205;const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  const PH=[
+    {label:'ENGINEERING\n& DESIGN',sub:'Months 1–9',col:'#0A1F44',tc:'#FFFFFF'},
+    {label:'PROCUREMENT\n& FABRICATION',sub:'Months 4–12',col:'#1E3A6B',tc:'#FFFFFF'},
+    {label:'CIVIL & EE\nCONSTRUCTION',sub:'Months 9–21',col:'#13294B',tc:'#FFFFFF'},
+    {label:'COMMISSIONING\n& TESTING',sub:'Months 21–24',col:'#F5C518',tc:'#0A1F44'},
+    {label:'COMMERCIAL\nOPERATION',sub:'COD ✓',col:'#1F9D6B',tc:'#FFFFFF'},
+  ];
+  const bw=106,bh=76,gap=14,sx=20,y=H/2-bh/2+10;
+  PH.forEach((p,i)=>{
+    const x=sx+i*(bw+gap);
+    ctx.fillStyle=p.col;ctx.beginPath();_rr(ctx,x,y,bw,bh,7);ctx.fill();
+    ctx.fillStyle=p.tc;ctx.textAlign='center';
+    const lines=p.label.split('\n');const baseY=y+bh/2-(lines.length-1)*7+(p.sub?-6:0);
+    ctx.font='bold 10px Arial';lines.forEach((l,li)=>ctx.fillText(l,x+bw/2,baseY+li*15));
+    ctx.font='9px Arial';ctx.fillStyle=p.tc==='#FFFFFF'?'rgba(255,255,255,0.8)':'rgba(0,0,0,0.6)';ctx.fillText(p.sub,x+bw/2,y+bh-10);
+    if(i<PH.length-1){
+      const ax=x+bw,ay=y+bh/2;
+      ctx.fillStyle='#9FB2D4';ctx.beginPath();
+      ctx.moveTo(ax,ay-5);ctx.lineTo(ax+gap-1,ay-5);ctx.lineTo(ax+gap-1,ay-9);
+      ctx.lineTo(ax+gap+6,ay);ctx.lineTo(ax+gap-1,ay+9);ctx.lineTo(ax+gap-1,ay+5);ctx.lineTo(ax,ay+5);
+      ctx.closePath();ctx.fill();
+    }});
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText('Project Execution Flowchart — EPCC Phases',W/2,18);
+  ctx.fillStyle='#5B6B85';ctx.font='9.5px Arial';ctx.textAlign='center';ctx.fillText('Phases overlap; timeline is indicative (screening grade). Target: COD within 24 months from financial close.',W/2,H-6);
+  return _c2img(cv);
+}
+
+async function chartSLD(d){
+  const kV=d.eng?d.eng.connkV:33,mwh=d.eng?d.eng.bessMWh:0,ikw=d.eng?d.eng.invKw:350;
+  const W=680,H=350;const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+  const box=(x,y,w,h,lbl,sub,bg,tc)=>{
+    ctx.fillStyle=bg||'#E8EDF4';ctx.strokeStyle='#0A1F44';ctx.lineWidth=1.5;
+    ctx.beginPath();_rr(ctx,x,y,w,h,5);ctx.fill();ctx.stroke();
+    ctx.textAlign='center';const ls=lbl.split('\n'),midY=y+h/2+(sub?-6:0);
+    ctx.fillStyle=tc||'#0A1F44';ctx.font='bold 10.5px Arial';
+    ls.forEach((l,i)=>ctx.fillText(l,x+w/2,midY+(i-(ls.length-1)/2)*13));
+    if(sub){ctx.font='9px Arial';ctx.fillStyle=tc==='#FFFFFF'?'rgba(255,255,255,0.75)':'#5B6B85';ctx.fillText(sub,x+w/2,y+h-9);}
+  };
+  const ln=(x1,y1,x2,y2,dash)=>{ctx.strokeStyle='#0A1F44';ctx.lineWidth=2;if(dash)ctx.setLineDash([5,3]);else ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);};
+  const lbl=(x,y,t,col,sz)=>{ctx.fillStyle=col||'#5B6B85';ctx.font=(sz||9)+'px Arial';ctx.textAlign='center';ctx.fillText(t,x,y);};
+  const R1=80,BH=58;
+  // Row 1: main power path
+  box(10,R1,88,BH,'PV ARRAY','1500 Vdc DC','#FFF6D6','#0A1F44');
+  ln(98,R1+BH/2,122,R1+BH/2);lbl(110,R1+BH/2-8,'DC','#B5860B',8);
+  box(122,R1,88,BH,'STRING\nINVERTER',ikw+' kW');
+  ln(210,R1+BH/2,234,R1+BH/2);lbl(222,R1+BH/2-8,'0.8 kV AC','#5B6B85',8);
+  box(234,R1,90,BH,'BOX\nTRANSFORMER','0.8/33 kV');
+  ln(324,R1+BH/2,348,R1+BH/2);lbl(336,R1+BH/2-8,'33 kV','#5B6B85',8);
+  box(348,R1,86,BH,'33 kV\nGIS','vacuum CB');
+  ln(434,R1+BH/2,458,R1+BH/2);lbl(446,R1+BH/2-8,'33 kV','#5B6B85',8);
+  box(458,R1,90,BH,'MAIN\nTRANSFORMER','33/'+kV+' kV');
+  ln(548,R1+BH/2,572,R1+BH/2);lbl(560,R1+BH/2-8,kV+' kV','#5B6B85',8);
+  box(572,R1,100,BH,kV+' kV\nGRID','TNB PCC','#D6EFD8','#0A1F44');
+  // Vertical drop from 33 kV GIS to Row 2
+  const R2=195;
+  ln(391,R1+BH,391,R2,true);
+  // Row 2: auxiliaries
+  box(340,R2,100,BH,'BESS',mwh?mwh+' MWh\nLFP':'LFP','#EEF2FF','#0A1F44');
+  box(226,R2,96,BH,'STATCOM','VAr / pf','#FFF0F5','#0A1F44');
+  ln(274,R1+BH,274,R2,true);
+  box(112,R2,96,BH,'PPC /\nSCADA','NLDC link','#F0F0FF','#0A1F44');
+  ln(160,R1+BH,160,R2,true);
+  box(10,R2,84,BH,'WEATHER\nSTATION','met + soiling','#F5F5EE','#0A1F44');
+  ln(52,R1+BH,52,R2,true);
+  // Legend
+  ctx.fillStyle='#5B6B85';ctx.font='9px Arial';ctx.textAlign='left';
+  ctx.fillText('Solid lines = power path  |  Dashed = control/auxiliary  |  Schematic only — not for construction',10,H-12);
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';
+  ctx.fillText('Single-Line Electrical Diagram (Schematic) — '+(d.name||'Solar Plant'),W/2,24);
+  return _c2img(cv);
+}
+
+async function chartSiteOutline(d){
+  if(!d.geo||!d.geo.ring)return null;
+  const ring=d.geo.ring;
+  const W=500,H=390;const cv=_mkc(W,H);const ctx=cv.getContext('2d');
+  // background
+  ctx.fillStyle='#EEF3FA';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#C8D8EC';ctx.lineWidth=1;
+  for(let g=0;g<5;g++){ctx.beginPath();ctx.moveTo(0,g*H/4);ctx.lineTo(W,g*H/4);ctx.stroke();}
+  for(let g=0;g<5;g++){ctx.beginPath();ctx.moveTo(g*W/4,0);ctx.lineTo(g*W/4,H);ctx.stroke();}
+  // polygon
+  const lats=ring.map(c=>c[0]),lons=ring.map(c=>c[1]);
+  const minLat=Math.min(...lats),maxLat=Math.max(...lats);
+  const minLon=Math.min(...lons),maxLon=Math.max(...lons);
+  const pad=50;const dLat=maxLat-minLat||0.001,dLon=maxLon-minLon||0.001;
+  const sc=Math.min((W-pad*2)/dLon,(H-pad*2-30)/dLat);
+  const ox=(W-sc*dLon)/2,oy=(H-32-sc*dLat)/2+18;
+  const px=lo=>ox+sc*(lo-minLon),py=la=>H-32-oy-sc*(la-minLat);
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.12)';ctx.beginPath();ring.forEach(([la,lo],i)=>i===0?ctx.moveTo(px(lo)+3,py(la)+3):ctx.lineTo(px(lo)+3,py(la)+3));ctx.closePath();ctx.fill();
+  // fill
+  const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#A8CFEE');gr.addColorStop(1,'#7BAEDB');
+  ctx.fillStyle=gr;ctx.strokeStyle='#1E3A6B';ctx.lineWidth=2.5;
+  ctx.beginPath();ring.forEach(([la,lo],i)=>i===0?ctx.moveTo(px(lo),py(la)):ctx.lineTo(px(lo),py(la)));ctx.closePath();ctx.fill();ctx.stroke();
+  // centroid marker
+  const[cla,clo]=d.geo.centroid;
+  ctx.fillStyle='#D94436';ctx.beginPath();ctx.arc(px(clo),py(cla),6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.arc(px(clo),py(cla),3,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#0A1F44';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText('centroid',px(clo),py(cla)-11);
+  // compass rose
+  const cx=W-34,cy=34;ctx.fillStyle='rgba(255,255,255,0.85)';ctx.beginPath();ctx.arc(cx,cy,20,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#0A1F44';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(cx,cy-15);ctx.lineTo(cx,cy+15);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-15,cy);ctx.lineTo(cx+15,cy);ctx.stroke();
+  ctx.fillStyle='#0A1F44';ctx.font='bold 10px Arial';ctx.textAlign='center';
+  ctx.fillText('N',cx,cy-17);ctx.fillText('S',cx,cy+23);ctx.textAlign='left';ctx.fillText('E',cx+17,cy+4);ctx.textAlign='right';ctx.fillText('W',cx-17,cy+4);
+  // title + info
+  ctx.fillStyle='#0A1F44';ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillText('Site Boundary Plan — '+fmt(d.geo.ha,1)+' ha  /  '+fmt(d.geo.acres,1)+' acres',W/2,16);
+  ctx.fillStyle='#5B6B85';ctx.font='10px Arial';ctx.fillText(cla.toFixed(4)+'°N  '+clo.toFixed(4)+'°E  |  perimeter '+fmt(d.geo.perimeter/1000,2)+' km',W/2,H-8);
+  return _c2img(cv);
+}
+
+// Embed a canvas PNG as a centred paragraph in the docx content array
+function _img(D,data,w,h,caption){
+  if(!data)return[];
+  const{Paragraph,TextRun,ImageRun,AlignmentType}=D;
+  const out=[new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:6},
+    children:[new ImageRun({data,transformation:{width:w,height:h},type:'png'})]})];
+  if(caption)out.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:0,after:120},
+    children:[new TextRun({text:caption,italics:true,size:17,color:'5B6B85'})]}));
+  return out;
+}
+
 /* ============ 7. WORD DOCUMENTS (docx-js) ============ */
 function docData(){
   const sens=[];
@@ -1543,8 +1773,12 @@ function _row(D,a,b,head){const{TableRow,TableCell,Paragraph,TextRun}=D;
 function _table(D,rows){const{Table,WidthType}=D;return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows});}
 
 async function makeTechProposal(d){
-  const D=window.docx;const{Document,Packer,Paragraph,TextRun,PageBreak,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun,ImageRun,PageBreak,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
   const b=d.brief;
+  // pre-render all charts in parallel
+  const[_iSite,_iFlow,_iSLD,_iMonth,_iIRR,_iTorn]=await Promise.all([
+    chartSiteOutline(d),chartProjectFlow(),chartSLD(d),
+    chartMonthlyEnergy(d),chartIRR(d),chartTornado(d)]);
   const C=[];
   // ── COVER PAGE ──
   C.push(new Paragraph({spacing:{before:480,after:60},alignment:AlignmentType.CENTER,children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:56,color:"0A1F44",font:"Calibri"})]}));
@@ -1582,6 +1816,7 @@ async function makeTechProposal(d){
     _row(D,"Prepared by",b.preparedBy),
   ]));
   C.push(new Paragraph({spacing:{before:120,after:40},children:[new TextRun({text:"Format follows the LSS4-era EPCC proposal precedent. Every figure marked MISSING awaits the LSS6 RFP, a TNB confirmation, or field work — nothing is invented. Screening grade: ±30–50%.",italics:true,size:18,color:"5B6B85"})]}));
+  _img(D,_iSite,360,285,'Figure 1 — Site boundary plan (from uploaded KML). Blue polygon is the assessed area; red dot is the centroid.').forEach(p=>C.push(p));
   C.push(new Paragraph({children:[new PageBreak()]}));
   // 1 intro
   C.push(_h(D,"1  Introduction",1));
@@ -1629,6 +1864,7 @@ async function makeTechProposal(d){
       _row(D,"BESS (placeholder, 2-hour)",`~${f(eng.bessMWh)} MWh @ ${f(eng.mwac)} MWac`),
       _row(D,"Connection voltage",`${eng.connkV} kV ${d.brief.connkV==="auto"?"(consultant-selected by size)":"(specified)"}`),
     ]));
+    _img(D,_iSLD,490,252,'Figure 2 — Single-line electrical diagram (schematic, screening grade). Solid lines: power path. Dashed: control/auxiliary. Not for construction.').forEach(p=>C.push(p));
   }
   // ── Grid interconnection & TNB requirements ──
   C.push(_h(D,"Grid Interconnection & TNB Requirements",2));
@@ -1690,6 +1926,9 @@ async function makeTechProposal(d){
       _row(D,"Break-even price",`${f(o.lcoeSen,1)} sen/kWh`),
     ]));
     C.push(new Paragraph({spacing:{before:100},children:[new TextRun({text:"Loading the compulsory battery cost without a battery revenue mechanism pushes break-even above any LSS tariff in history. The RFP's battery payment rule is the single most price-setting unknown.",italics:true,size:19,color:"5B6B85"})]}));
+    _img(D,_iMonth,490,224,'Figure 3 — Estimated monthly energy generation (GWh). Malaysia\'s near-equatorial latitude gives a relatively uniform profile; minor dips coincide with the north-east monsoon season (Nov–Jan).').forEach(p=>C.push(p));
+    _img(D,_iIRR,490,202,'Figure 4 — Equity IRR vs feed-in tariff. Green dots clear the hurdle rate; red dots fall short. The vertical position of the crossing is the minimum tariff the project needs.').forEach(p=>C.push(p));
+    _img(D,_iTorn,400,185,'Figure 5 — Tornado chart: IRR sensitivity to ±20% swing on each lever. The longest bar identifies the dominant risk driver.').forEach(p=>C.push(p));
   } else C.push(_missP(D,"Financial screening not completed.","tab 4"));
   // ── OPEX / O&M breakdown ──
   C.push(_h(D,"Operation & Maintenance (OPEX) Breakdown",2));
@@ -1705,6 +1944,7 @@ async function makeTechProposal(d){
   // 4 PQP
   C.push(_h(D,"4  Project Quality Plan",1));
   C.push(_p(D,"BEM-registered PEs; document control with 7-day Employer comment cycle; Primavera P6 schedule; DOSH-registered SHO, CIDB Green Cards, HIRARC, permit-to-work; ITPs, FAT/SAT; Grid Compliance and Performance Tests per the Malaysian Grid Code."));
+  _img(D,_iFlow,490,148,'Figure 6 — EPCC project execution phases. Phases overlap (fast-track); target commercial operation within 24 months of financial close.').forEach(p=>C.push(p));
   C.push(_missP(D,"Named EPCC contractor, org chart, and schedule milestone dates.","at appointment"));
   C.push(new Paragraph({spacing:{before:160},children:[new TextRun({text:`Generated by SiteGate on ${d.date} from session values. Screening-stage; not bankable; not a sole basis for investment.`,italics:true,size:17,color:"5B6B85"})]}));
   const doc=new Document({sections:[{properties:{page:{margin:{top:1000,bottom:1000,left:1100,right:1100}}},children:C}]});
@@ -1712,8 +1952,10 @@ async function makeTechProposal(d){
 }
 
 async function makeBoardPaper(d){
-  const D=window.docx;const{Document,Packer,Paragraph,TextRun,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
+  const D=window.docx;const{Document,Packer,Paragraph,TextRun,ImageRun,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
   const b=d.brief;
+  const[_iSite,_iMonth,_iIRR,_iTorn]=await Promise.all([
+    chartSiteOutline(d),chartMonthlyEnergy(d),chartIRR(d),chartTornado(d)]);
   const C=[];
   // ── COVER PAGE ──
   C.push(new Paragraph({spacing:{before:560,after:80},alignment:AlignmentType.CENTER,children:[new TextRun({text:"BOARD PAPER",bold:true,size:56,color:"0A1F44",font:"Calibri"})]}));
@@ -1740,6 +1982,7 @@ async function makeBoardPaper(d){
     _row(D,"Document version",b.version),
     _row(D,"Prepared by",b.preparedBy),
   ]));
+  _img(D,_iSite,340,270,'Site boundary plan — computed from KML boundary file.').forEach(p=>C.push(p));
   C.push(_h(D,"1  Decision sought",1));
   C.push(_p(D,"Approve the Stage-2 verification budget of RM 150,000–400,000 to take this desk-screened site to bid-ready before the RFP opens. Kill-fast: the land search and TNB's grid answer can each end the project for under RM 100,000."));
   C.push(_h(D,"2  The asset, in verified numbers",1));
@@ -1757,6 +2000,9 @@ async function makeBoardPaper(d){
     C.push(_p(D,`At ${fi.capexPM} m/MWp + ${fi.contPct}% contingency, ${fi.gearPct}% debt @ ${fi.intPct}% × ${fi.tenor} yr, a ${fi.tariffSen} sen/kWh tariff returns ${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"% equity IRR"} vs the ${fi.hurdle}% hurdle, worst-year cover ${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"}, cash back ${o.payback?"in year "+o.payback:"beyond the PPA"}. Break-even ${f(o.lcoeSen,1)} sen/kWh.`));
     C.push(new Paragraph({shading:{type:"clear",fill:"FFF6D6"},border:{left:{style:"single",size:18,color:"E0B30E",space:8}},spacing:{before:80,after:80},
       children:[new TextRun({text:"The LSS6 wildcard: ",bold:true,color:"B5860B"}),new TextRun({text:"batteries are compulsory but how they are paid is unpublished. Loaded with battery cost and no battery revenue, no tariff in LSS history clears the hurdle. The RFP's battery mechanism — not the solar economics — decides whether this bids.",size:20})]}));
+    _img(D,_iMonth,460,210,'Estimated monthly energy generation (GWh) — indicative, based on screening yield.').forEach(p=>C.push(p));
+    _img(D,_iIRR,460,200,'Equity IRR sensitivity to tariff — green dots exceed the hurdle rate.').forEach(p=>C.push(p));
+    _img(D,_iTorn,380,178,'Tornado: ±20% swing on each financial lever — longest bar = biggest risk driver.').forEach(p=>C.push(p));
   } else C.push(_missP(D,"Financial screening not completed.","tab 4"));
   C.push(_h(D,"4  What we don't yet know",1));
   d.unknowns.forEach(u=>C.push(new Paragraph({bullet:{level:0},spacing:{after:40},children:[new TextRun({text:u[0]+" — ",bold:true,size:20}),new TextRun({text:u[1]+" · ",size:20}),new TextRun({text:u[2],italics:true,color:"B5860B",size:19})]})));
