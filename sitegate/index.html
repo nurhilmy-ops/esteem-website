@@ -244,6 +244,21 @@ tr:nth-child(even) td{background:#FAFBFD}
           </label>
           <label class="fld"><span class="lb">Grid connection point <span class="hint">TNB substation name</span></span><input type="text" id="br-gridPoint" placeholder="e.g. TNB PMU Bidor"></label>
           <label class="fld"><span class="lb">Distance to grid <span class="hint">km — leave blank if unknown</span></span><input type="number" id="br-gridKm" placeholder="0.5" step="0.1" min="0"></label>
+          <label class="fld"><span class="lb">Connection voltage <span class="hint">consultant picks if unsure</span></span>
+            <select id="br-connkV">
+              <option value="auto">Auto (consultant selects by size)</option>
+              <option value="33">33 kV (distribution, ≤30 MWac)</option>
+              <option value="132">132 kV (sub-transmission)</option>
+              <option value="275">275 kV (transmission)</option>
+            </select>
+          </label>
+          <label class="fld"><span class="lb">Interconnection route <span class="hint">how cables reach TNB</span></span>
+            <select id="br-route">
+              <option value="auto">Auto (consultant recommends)</option>
+              <option value="ug-road">Underground along road reserve</option>
+              <option value="ohl-direct">Overhead line, direct corridor</option>
+            </select>
+          </label>
           <label class="fld"><span class="lb">Land status</span>
             <select id="br-landStatus">
               <option value="Agricultural">Agricultural (conversion required)</option>
@@ -254,6 +269,7 @@ tr:nth-child(even) td{background:#FAFBFD}
               <option value="Unknown">Unknown — to be confirmed</option>
             </select>
           </label>
+          <label class="fld"><span class="lb">Land rate <span class="hint">RM/sqft — for wayleave compensation (blank = consultant default)</span></span><input type="number" id="br-landRate" placeholder="auto by area" step="0.1" min="0"></label>
         </div>
       </div>
       <div class="divider"></div>
@@ -803,16 +819,16 @@ $("modalBg").onclick=e=>{if(e.target===$("modalBg"))$("modalBg").classList.remov
 const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analysis:null,deductTerrain:true,_analyzing:false};
 
 /* ============ PROJECT BRIEF ============ */
-const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',landStatus:'Agricultural'};
+const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:''};
 let B={...BRIEF_DEF};
 function initBrief(){
-  ['projName','devName','epccName','preparedBy','gridPoint','gridKm'].forEach(k=>{
+  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||'';
     el.oninput=()=>{B[k]=el.value;syncBriefDisplay();};
   });
-  ['programme','landStatus'].forEach(k=>{
+  ['programme','connkV','route','landStatus'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||BRIEF_DEF[k];
@@ -1392,6 +1408,96 @@ $("loadDemo").onclick=async()=>{
 };
 $("printReport").onclick=()=>window.print();
 
+/* ============ CONSULTANT ENGINEERING KNOWLEDGE LAYER (2026) ============ */
+/* Current-technology equipment defaults a principal solar consultant would
+   specify, plus derived quantities, TNB interconnection requirements, cable
+   routing & land-take compensation, and an OPEX breakdown. All figures are
+   screening-grade and labelled as consultant assumptions, not field data.   */
+const CONSULTANT={
+  module:{tech:"Monocrystalline n-type TOPCon bifacial",wp:615,area:2.79,eff:23.0,
+    makers:"Tier-1 (e.g. LONGi Hi-MO, JinkoSolar Tiger Neo, Trina Vertex N, JA Solar)",
+    note:"144 half-cut cells, 1500 Vdc system, bifaciality ~70%. TOPCon is the 2025–26 utility-scale norm, displacing PERC."},
+  inverter:{type:"String inverter",kw:350,vdc:1500,
+    note:"String inverters chosen over central: finer MPPT granularity, modular O&M, better partial-shade and terrain tolerance, no single large point of failure. ~320–350 kW, 1500 Vdc, IP66."},
+  bess:{tech:"Lithium Iron Phosphate (LFP), liquid-cooled containerised",
+    cont:"~5 MWh per 20-ft unit, integrated PCS, 1500 Vdc",cRate:0.5,hours:2,
+    note:"LFP is the safest/most bankable chemistry for grid BESS. Liquid cooling for Malaysian ambient. Sizing pending LSS6 RFP — assume 2-hour duration at the AC rating as a placeholder."},
+  boxTx:{ratio:"0.8/33 kV",type:"Inverter-duty box transformer, ONAN, hermetically sealed",kvaPerMw:1100},
+  mainTx:{type:"Outdoor oil-immersed, ONAN, OLTC, conservator",vector:"YNd1"},
+  switchgear33:{type:"33 kV gas-insulated switchgear (GIS), vacuum CB"},
+  reactive:{type:"STATCOM + harmonic filter (dynamic VAr)",
+    note:"Modern TNB Grid Code increasingly requires dynamic reactive support and LVRT compliance; a STATCOM is specified in place of/with a fixed capacitor bank."},
+  cableDC:{spec:"PV1-F 6 mm² Cu, double-insulated, UV/ozone rated"},
+  cableLV:{spec:"XLPE/PVC Al 0.6/1 kV, direct-buried"},
+  cableMV:{spec:"3×1C 630 mm² XLPE Cu/Al 33 kV, trefoil"},
+  // land compensation default rates (RM/sqft) by land status — JPPH/state-office screening band
+  landRates:{"Agricultural":3.5,"Ex-mining":4.0,"State land":2.5,"Freehold":12.0,"Leasehold":8.0,"Unknown":4.0},
+  // OPEX line items as % share of total annual O&M (screening allocation)
+  opexSplit:[
+    ["Scheduled preventive maintenance (PV, inverters, BoP)",22],
+    ["Module cleaning (dry/wet, 4–6 cycles/yr)",14],
+    ["Vegetation & site management",8],
+    ["Inverter service & replacement reserve",12],
+    ["Spare parts & consumables",6],
+    ["SCADA / remote monitoring & asset management",7],
+    ["Security (manned + CCTV)",9],
+    ["Insurance (all-risk + business interruption)",10],
+    ["Land lease / quit rent",6],
+    ["Grid & metering charges",4],
+    ["BESS augmentation reserve",2],
+  ],
+};
+function pickConnkV(env,brief){
+  if(brief.connkV&&brief.connkV!=="auto")return parseInt(brief.connkV,10);
+  const mwac=env?env.tot/1.25:0; // approx AC from DC at 1.25 DC:AC
+  if(mwac<=30)return 33;
+  if(mwac<=100)return 132;
+  return 275;
+}
+// Derived equipment schedule from the computed plant size
+function engineeringSchedule(d){
+  if(!d.env)return null;
+  const mwp=d.env.tot, wp=CONSULTANT.module.wp;
+  const modules=Math.round(mwp*1e6/wp);
+  const invKw=CONSULTANT.inverter.kw;
+  const mwac=mwp/1.25;
+  const inverters=Math.ceil(mwp*1000/invKw);
+  const boxTx=Math.max(1,Math.round(mwp*CONSULTANT.boxTx.kvaPerMw/6300)); // ~6.3 MVA units
+  const mainTxMVA=Math.ceil(mwac/10)*10*1.1; // round up, +10% margin
+  const connkV=pickConnkV(d.env,d.brief);
+  const bessMWh=Math.round(mwac*CONSULTANT.bess.hours); // 2h placeholder
+  const strings=Math.round(modules/28);
+  return {mwp,mwac,modules,inverters,invKw,boxTx,mainTxMVA,connkV,bessMWh,strings,wp};
+}
+// Cable routing options + land-take compensation
+function routingAnalysis(d){
+  const km=d.brief.gridKm?parseFloat(d.brief.gridKm):null;
+  if(!km||!isFinite(km))return null;
+  const connkV=pickConnkV(d.env,d.brief);
+  const rate=d.brief.landRate?parseFloat(d.brief.landRate):(CONSULTANT.landRates[d.brief.landStatus]||4.0);
+  // OHL corridor width by voltage (m); UG along road reserve needs negligible acquisition
+  const corridorM=connkV>=275?40:connkV>=132?30:20;
+  const lengthM=km*1000;
+  const corridorAcres=(lengthM*corridorM)/4046.86;
+  const corridorSqft=corridorAcres*43560;
+  const ohlCompensation=corridorSqft*rate;
+  // UG along road: ~1.3× route length (follows roads), open-cut, no land acquisition but higher civils
+  const ugLengthM=lengthM*1.3;
+  return {km,connkV,rate,corridorM,corridorAcres,ohlCompensation,ugLengthM,lengthM,
+    recommend: d.brief.route&&d.brief.route!=="auto" ? d.brief.route
+      : (km<=2?"ug-road":"ohl-direct")};
+}
+// OPEX breakdown table from the financial model
+function opexBreakdown(d){
+  if(!d.fm)return null;
+  const fi=d.fm.inputs,o=d.fm.out;
+  const annualOpex=o.capex*fi.opexPct/100; // year-1 RM
+  const perMwp=annualOpex/fi.mwp;
+  const rows=CONSULTANT.opexSplit.map(([label,pct])=>({label,pct,rm:annualOpex*pct/100,
+    rmPerMwp:annualOpex*pct/100/fi.mwp}));
+  return {annualOpex,perMwp,rows,opexPct:fi.opexPct,mwp:fi.mwp};
+}
+
 /* ============ 7. WORD DOCUMENTS (docx-js) ============ */
 function docData(){
   const sens=[];
@@ -1411,11 +1517,18 @@ function docData(){
     programme: B.programme||"LSS6",
     gridPoint: B.gridPoint||null,
     gridKm:   B.gridKm||null,
+    connkV:   B.connkV||"auto",
+    route:    B.route||"auto",
     landStatus: B.landStatus||"Unknown",
+    landRate: B.landRate||null,
     version:  "Rev 0",
   };
-  return {name:brief.projName,date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
+  const d0={name:brief.projName,date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
     brief,geo:S.geo,res:S.res?{...S.res,tierLabel:tierLabel(S.res.tier)}:null,env:S.env,fm:S.fm,sens,slope:S.slope,unknowns};
+  d0.eng=engineeringSchedule(d0);
+  d0.routing=routingAnalysis(d0);
+  d0.opex=opexBreakdown(d0);
+  return d0;
 }
 function _missP(D,what,when){const{Paragraph,TextRun}=D;
   return new Paragraph({shading:{type:"clear",fill:"FFF6D6"},border:{left:{style:"single",size:18,color:"E0B30E",space:8}},spacing:{before:60,after:60},
@@ -1472,7 +1585,6 @@ async function makeTechProposal(d){
   C.push(new Paragraph({children:[new PageBreak()]}));
   // 1 intro
   C.push(_h(D,"1  Introduction",1));
-  C.push(_p(D,'The Government of Malaysia, through Suruhanjaya Tenaga, is expected to issue the LSS6 request for proposal (2,000 MW, BESS mandatory per the Deputy Prime Minister on 3 June 2026).'));
   C.push(_p(D,`The Government of Malaysia, through Suruhanjaya Tenaga (ST), is expected to issue the ${b.programme} request for proposal. ${b.programme==="LSS6"?"Total capacity: 2,000 MW, BESS mandatory (Deputy Prime Minister, 3 June 2026).":""}`));
   C.push(_missP(D,"ST RFP reference, capacity bands, BESS sizing rule and tariff mechanism.","awaiting RFP"));
   if(d.geo){
@@ -1485,11 +1597,69 @@ async function makeTechProposal(d){
   // 2 scope
   C.push(_h(D,"2  Scope of Work",1));
   C.push(_h(D,"PV Farm",2));
-  if(d.env){const mods=Math.round(d.env.tot*1e6/580);
-    C.push(_p(D,`PV modules with floating pontoon and ground mounting (~${f(mods)} modules at 580 Wp, indicative); string inverters (count at detailed design); DC and LV AC cabling; 0.8/33 kV box transformers; 33 kV reticulation; BESS per LSS6 (sizing unpublished); weather stations.`));}
+  const eng=d.eng;
+  if(eng){
+    C.push(_p(D,`The Facility comprises approximately ${f(eng.modules)} ${CONSULTANT.module.tech} modules at ${eng.wp} Wp (${f(eng.strings)} strings of 28), ${f(eng.inverters)} × ${eng.invKw} kW string inverters, DC and LV AC reticulation, ${f(eng.boxTx)} × ${CONSULTANT.boxTx.ratio} inverter-duty box transformers, 33 kV collection network, BESS, weather stations and the SCADA/PPC system. Equipment selections below are the consultant's recommended current-technology basis (2026); final make/model is set at detailed design.`));}
   else C.push(_p(D,"PV plant — envelope not computed this session."));
-  C.push(_h(D,"Grid Interconnection",2));
-  C.push(_missP(D,"Interconnector length, UG-vs-OHL, right-of-way, and whether the PMU can accept a new bay (assume none until TNB confirms).","TNB nodal study + site visit — fatal-flaw item"));
+  // ── Consultant equipment schedule ──
+  C.push(_h(D,"Recommended Equipment & Technology (Consultant Basis, 2026)",2));
+  C.push(_table(D,[
+    _row(D,"Equipment","Recommended specification",true),
+    _row(D,"PV module",`${CONSULTANT.module.tech}, ${CONSULTANT.module.wp} Wp, ${CONSULTANT.module.eff}% eff. — ${CONSULTANT.module.makers}`),
+    _row(D,"Inverter",`${CONSULTANT.inverter.type}, ~${CONSULTANT.inverter.kw} kW, ${CONSULTANT.inverter.vdc} Vdc`),
+    _row(D,"Inverter rationale",CONSULTANT.inverter.note),
+    _row(D,"BESS",`${CONSULTANT.bess.tech}; ${CONSULTANT.bess.cont}; ~${CONSULTANT.bess.hours}-hour duration`),
+    _row(D,"Box transformer",`${CONSULTANT.boxTx.type}, ${CONSULTANT.boxTx.ratio}`),
+    _row(D,"Main step-up transformer",`${eng?f(eng.mainTxMVA)+" MVA, ":""}${eng?eng.connkV:"—"}/33 kV, ${CONSULTANT.mainTx.type}, vector ${CONSULTANT.mainTx.vector}`),
+    _row(D,"MV switchgear",CONSULTANT.switchgear33.type),
+    _row(D,"Reactive compensation",`${CONSULTANT.reactive.type} — ${CONSULTANT.reactive.note}`),
+    _row(D,"DC cable",CONSULTANT.cableDC.spec),
+    _row(D,"LV AC cable",CONSULTANT.cableLV.spec),
+    _row(D,"MV (33 kV) cable",CONSULTANT.cableMV.spec),
+    _row(D,"Mounting","Fixed-tilt galvanised steel, driven pile (~2 m), tilt ~10° (near-equator optimum)"),
+  ]));
+  if(eng){
+    C.push(_h(D,"Derived Plant Quantities",2));
+    C.push(_table(D,[
+      _row(D,"Quantity","Screening value",true),
+      _row(D,"PV modules",`~${f(eng.modules)} units @ ${eng.wp} Wp`),
+      _row(D,"String inverters",`~${f(eng.inverters)} units @ ${eng.invKw} kW`),
+      _row(D,"Box transformers",`~${f(eng.boxTx)} units`),
+      _row(D,"Main step-up transformer",`${f(eng.mainTxMVA)} MVA, ${eng.connkV}/33 kV`),
+      _row(D,"BESS (placeholder, 2-hour)",`~${f(eng.bessMWh)} MWh @ ${f(eng.mwac)} MWac`),
+      _row(D,"Connection voltage",`${eng.connkV} kV ${d.brief.connkV==="auto"?"(consultant-selected by size)":"(specified)"}`),
+    ]));
+  }
+  // ── Grid interconnection & TNB requirements ──
+  C.push(_h(D,"Grid Interconnection & TNB Requirements",2));
+  C.push(_p(D,`Connection is proposed at ${eng?eng.connkV+" kV":"the voltage set by TNB"} to ${b.gridPoint||"the nominated TNB substation"}. As principal consultant, the following TNB Grid Code / Distribution Code obligations are designed for and must be evidenced through a Power System Study (PSS):`));
+  C.push(_table(D,[
+    _row(D,"TNB requirement","Design provision",true),
+    _row(D,"Connection application","IAF-01 / IAR; capacity reservation at the PMU/substation"),
+    _row(D,"Power System Study","Load-flow, fault-level, harmonics, transient & dynamic stability"),
+    _row(D,"Reactive capability","±0.95 power factor at point of common coupling via STATCOM"),
+    _row(D,"Voltage ride-through","LVRT/HVRT compliance per Malaysian Grid Code"),
+    _row(D,"Protection","Distance + differential, with TNB-witnessed relay coordination"),
+    _row(D,"Metering","Main + check revenue metering to TNB standard; PQ recorder"),
+    _row(D,"SCADA / telemetry","Real-time link to TNB NLDC; PPC for setpoint compliance"),
+  ]));
+  C.push(_missP(D,"PMU spare-bay availability and firm capacity — assume none until TNB's nodal study confirms.","TNB nodal study — fatal-flaw item"));
+  // ── Cable routing & land acquisition ──
+  C.push(_h(D,"Interconnector Routing & Land Acquisition",2));
+  const rt=d.routing;
+  if(rt){
+    const recLabel=rt.recommend==="ug-road"?"Underground cable along the road reserve":"Overhead transmission line on a direct corridor";
+    C.push(_p(D,`Two routing strategies were assessed over the ~${f(rt.km,2)} km to ${b.gridPoint||"the TNB connection point"} at ${rt.connkV} kV. Recommended: ${recLabel}.`));
+    C.push(_table(D,[
+      _row(D,"Routing option","Assessment",true),
+      _row(D,"A — Underground along road reserve",`~${f(rt.ugLengthM,0)} m (≈1.3× direct, follows existing roads). Open-cut ${rt.connkV} kV XLPE. Minimal land acquisition — uses public road reserve. Higher civils cost, lower wayleave/compensation risk.`),
+      _row(D,"B — Overhead line, direct corridor",`~${f(rt.lengthM,0)} m direct. Requires a ~${rt.corridorM} m wayleave corridor ≈ ${f(rt.corridorAcres,2)} acres of land take. Lower civils, but land acquisition + compensation and longer approvals.`),
+      _row(D,"Land compensation (Option B)",`≈ RM ${f(rt.ohlCompensation,0)} at RM ${f(rt.rate,1)}/sqft (${d.brief.landRate?"client-supplied rate":d.brief.landStatus+" land, JPPH screening band"})`),
+    ]));
+    C.push(new Paragraph({spacing:{before:60,after:60},children:[new TextRun({text:"Land rate is a screening figure from public JPPH/state-office bands for the land class — a formal valuation is required before acquisition.",italics:true,size:18,color:"5B6B85"})]}));
+  } else {
+    C.push(_missP(D,"Distance to grid not entered — routing and land-take compensation cannot be derived.","enter distance in Project Brief"));
+  }
   C.push(_h(D,"Plant Description",2));
   C.push(_table(D,[
     _row(D,"Item","Value",true),
@@ -1498,6 +1668,7 @@ async function makeTechProposal(d){
     _row(D,"Utility","Tenaga Nasional Berhad"),
     _row(D,"Grid connection point",b.gridPoint||"MISSING — TNB IAF-01 study"),
     _row(D,"Distance to grid connection",b.gridKm?b.gridKm+" km":"MISSING — TNB nodal study"),
+    _row(D,"Connection voltage",d.eng?d.eng.connkV+" kV":"MISSING"),
     _row(D,"Plant type",d.env&&d.env.fpvMW>0?"Hybrid floating + ground, with BESS":"Ground-mounted, with BESS"),
     _row(D,"Total DC capacity",d.env?`${f(d.env.tot)} MWp (FPV ${f(d.env.fpvMW)} + ground ${f(d.env.gmMW)})`:"—"),
     _row(D,"Site area",d.geo?`${f(d.geo.ha,2)} ha`:"—"),
@@ -1520,6 +1691,17 @@ async function makeTechProposal(d){
     ]));
     C.push(new Paragraph({spacing:{before:100},children:[new TextRun({text:"Loading the compulsory battery cost without a battery revenue mechanism pushes break-even above any LSS tariff in history. The RFP's battery payment rule is the single most price-setting unknown.",italics:true,size:19,color:"5B6B85"})]}));
   } else C.push(_missP(D,"Financial screening not completed.","tab 4"));
+  // ── OPEX / O&M breakdown ──
+  C.push(_h(D,"Operation & Maintenance (OPEX) Breakdown",2));
+  const ox=d.opex;
+  if(ox){
+    C.push(_p(D,`Year-1 O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX ≈ RM ${f(ox.annualOpex/1e6,2)} m/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating with inflation. The consultant's indicative allocation across O&M activities:`));
+    const opexRows=[_row(D,"O&M activity","Share · RM/yr · RM/MWp/yr",true)];
+    ox.rows.forEach(r=>opexRows.push(_row(D,r.label,`${f(r.pct,0)}%  ·  RM ${f(r.rm/1e3,0)}k  ·  RM ${f(r.rmPerMwp,0)}`)));
+    opexRows.push(_row(D,"TOTAL",`100%  ·  RM ${f(ox.annualOpex/1e6,2)} m  ·  RM ${f(ox.perMwp,0)}`,false));
+    C.push(_table(D,opexRows));
+    C.push(new Paragraph({spacing:{before:60,after:60},children:[new TextRun({text:"Allocation is a screening split from typical Malaysian LSS O&M structures; module cleaning frequency, security model and insurance terms are confirmed at the O&M contracting stage. BESS augmentation is a reserve only — the LSS6 battery duty will revise it.",italics:true,size:18,color:"5B6B85"})]}));
+  } else C.push(_missP(D,"OPEX breakdown needs the financial screening.","complete tab 4"));
   // 4 PQP
   C.push(_h(D,"4  Project Quality Plan",1));
   C.push(_p(D,"BEM-registered PEs; document control with 7-day Employer comment cycle; Primavera P6 schedule; DOSH-registered SHO, CIDB Green Cards, HIRARC, permit-to-work; ITPs, FAT/SAT; Grid Compliance and Performance Tests per the Malaysian Grid Code."));
