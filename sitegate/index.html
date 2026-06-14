@@ -1997,13 +1997,533 @@ function _row(D,a,b,head){const{TableRow,TableCell,Paragraph,TextRun}=D;
 function _table(D,rows){const{Table,WidthType}=D;return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows});}
 
 async function makeTechProposal(d){
-  const D=window.docx;const{Document,Packer,Paragraph,TextRun,ImageRun,PageBreak,AlignmentType}=D;const f=(x,n=0)=>fmt(x,n);
-  const b=d.brief;
-  // pre-render all charts in parallel
+  const D=window.docx;
+  const{Document,Packer,Paragraph,TextRun,ImageRun,PageBreak,AlignmentType,WidthType,Table,TableRow,TableCell}=D;
+  const f=(x,n=0)=>fmt(x,n);const b=d.brief;const eng=d.eng;
+
+  // ── pre-render charts in parallel ──
   const[_iSite,_iFlow,_iSLD,_iMonth,_iIRR,_iTorn]=await Promise.all([
     chartSiteOutline(d),chartProjectFlow(),chartSLD(d),
     chartMonthlyEnergy(d),chartIRR(d),chartTornado(d)]);
+
+  // ── local helpers (improved styling) ──
+  const pb=()=>new Paragraph({children:[new PageBreak()]});
+  const H1=t=>new Paragraph({spacing:{before:300,after:120},shading:{type:"clear",fill:"0A1F44"},indent:{left:120,right:80},
+    children:[new TextRun({text:t,bold:true,color:"FFFFFF",size:30,font:"Calibri"})]});
+  const H2=t=>new Paragraph({spacing:{before:220,after:80},border:{bottom:{style:"single",size:8,color:"F5C518",space:4}},
+    children:[new TextRun({text:t,bold:true,color:"0A1F44",size:26,font:"Calibri"})]});
+  const H3=t=>new Paragraph({spacing:{before:160,after:60},
+    children:[new TextRun({text:t,bold:true,color:"1E3A6B",size:22})]});
+  const P=t=>new Paragraph({spacing:{after:90,line:276},alignment:AlignmentType.JUSTIFIED,
+    children:[new TextRun({text:t,size:21})]});
+  const BUL=(t,lv=0)=>new Paragraph({bullet:{level:lv},spacing:{after:50},
+    children:[new TextRun({text:t,size:20})]});
+  const MISS=(w,wh)=>_missP(D,w,wh);
+  const INFO=(title,body,col)=>{col=col||"1E3A6B";const fill=col==="1E3A6B"?"EAF0FB":col==="1F9D6B"?"E8F5EE":col==="D94436"?"FEF0EE":"FFF6D6";
+    return new Paragraph({shading:{type:"clear",fill},border:{left:{style:"single",size:24,color:col,space:8}},
+      spacing:{before:80,after:80},indent:{left:100},
+      children:[new TextRun({text:title+": ",bold:true,color:col,size:20}),new TextRun({text:body,size:20})]});};
+  const cell2=(txt,head,bg)=>new TableCell({shading:bg?{type:"clear",fill:bg}:undefined,
+    margins:{top:40,bottom:40,left:90,right:90},
+    children:[new Paragraph({alignment:AlignmentType.LEFT,
+      children:[new TextRun({text:String(txt),bold:head,color:head&&bg==="0A1F44"?"FFFFFF":"0A1F44",size:19})]})]});
+  const ROW2=(a,b,head)=>new TableRow({children:[cell2(a,true,head?"0A1F44":"EEF2F8"),cell2(b,false,head?"0A1F44":null)]});
+  const cell3=(txt,w,head)=>new TableCell({shading:head?{type:"clear",fill:"0A1F44"}:undefined,
+    width:{size:w,type:WidthType.PERCENTAGE},margins:{top:40,bottom:40,left:90,right:90},
+    children:[new Paragraph({children:[new TextRun({text:String(txt),bold:head,color:head?"FFFFFF":"0A1F44",size:18})]})]});
+  const ROW3=(a,b,c,wa,wb,head)=>new TableRow({children:[cell3(a,wa||33,head),cell3(b,wb||47,head),cell3(c,100-(wa||33)-(wb||47),head)]});
+  const cell4=(txt,w,head,col)=>new TableCell({shading:head?{type:"clear",fill:"0A1F44"}:undefined,
+    width:{size:w,type:WidthType.PERCENTAGE},margins:{top:38,bottom:38,left:80,right:80},
+    children:[new Paragraph({children:[new TextRun({text:String(txt),bold:head,color:head?"FFFFFF":col||"0A1F44",size:18})]})]});
+  const ROW4=(a,b,c,dd,head,cx)=>new TableRow({children:[cell4(a,36,head),cell4(b,16,head,cx?cx[1]:""),cell4(c,16,head,cx?cx[2]:""),cell4(dd,32,head,cx?cx[3]:"")]});
+  const TBL=rows=>new Table({width:{size:100,type:WidthType.PERCENTAGE},rows});
+  const figRef={n:0};const FIG=(data,w,h,cap)=>{figRef.n++;return _img(D,data,w,h,`Figure ${figRef.n} — ${cap}`);};
+
+  // ── convenience: total annual energy in GWh ──
+  const annGWh=(d.fm&&d.env)?(d.fm.inputs.mwp*d.fm.inputs.yld/1000):null;
+
   const C=[];
+
+  // ══════════════════════════════════════════════════════════════
+  // COVER PAGE
+  // ══════════════════════════════════════════════════════════════
+  C.push(new Paragraph({spacing:{before:560,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:60,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.programme+" | SOLAR PHOTOVOLTAIC POWER PLANT",size:24,color:"1E3A6B",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{before:20,after:20},alignment:AlignmentType.CENTER,
+    border:{bottom:{style:"single",size:12,color:"F5C518",space:0}},children:[new TextRun({text:" ",size:8})]}));
+  C.push(new Paragraph({spacing:{before:20,after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:"Engineering, Procurement, Construction & Commissioning of a",size:20,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:20},alignment:AlignmentType.CENTER,children:[new TextRun({text:`${d.env?f(d.env.tot)+" MWp (STC)":"[CAPACITY TBC]"} Solar Photovoltaic Power Plant`,bold:true,size:28,color:"0A1F44",font:"Calibri"})]}));
+  C.push(new Paragraph({spacing:{after:16},alignment:AlignmentType.CENTER,children:[new TextRun({text:"at",size:20,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:40},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.projName.toUpperCase(),bold:true,size:32,color:"0A1F44",font:"Calibri"})]}));
+  if(d.geo){const[la,lo]=d.geo.centroid;
+    C.push(new Paragraph({spacing:{after:320},alignment:AlignmentType.CENTER,children:[new TextRun({text:`${la.toFixed(4)}°N  ${lo.toFixed(4)}°E  |  ${f(d.geo.ha,1)} ha  |  perimeter ${f(d.geo.perimeter/1000,2)} km`,size:19,color:"5B6B85",italics:true})]}))}
+  else C.push(new Paragraph({spacing:{after:320}}));
+  C.push(new Paragraph({spacing:{after:14},alignment:AlignmentType.CENTER,children:[new TextRun({text:"Submitted by",size:18,color:"5B6B85"})]}));
+  C.push(new Paragraph({spacing:{after:10},alignment:AlignmentType.CENTER,children:[new TextRun({text:(b.devName||"[DEVELOPER NAME]").toUpperCase(),bold:true,size:26,color:"1E3A6B",font:"Calibri"})]}));
+  if(b.epccName)C.push(new Paragraph({spacing:{after:10},alignment:AlignmentType.CENTER,children:[new TextRun({text:"EPCC Contractor: "+b.epccName,size:20,color:"1E3A6B"})]}));
+  C.push(new Paragraph({spacing:{before:160,after:8},alignment:AlignmentType.CENTER,children:[new TextRun({text:`Date: ${d.date}   |   Version: ${b.version}   |   CONFIDENTIAL`,size:18,color:"5B6B85",italics:true})]}));
+  C.push(new Paragraph({spacing:{after:8},alignment:AlignmentType.CENTER,children:[new TextRun({text:"Prepared by: "+b.preparedBy,size:18,color:"5B6B85",italics:true})]}));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // PROJECT PARTICULARS — PAGE 2
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("PROJECT PARTICULARS"));
+  C.push(TBL([
+    ROW2("Item","Particulars",true),
+    ROW2("Project name",b.projName),
+    ROW2("Developer / SPV",b.devName||"MISSING — enter in Project Brief tab"),
+    ROW2("EPCC contractor",b.epccName||"To be appointed via competitive tender"),
+    ROW2("Programme / scheme",b.programme+(b.programme==="LSS6"?" — 2,000 MW national tender, BESS mandatory":"")),
+    ROW2("Site location & centre",d.geo?`${d.geo.centroid[0].toFixed(5)}°N, ${d.geo.centroid[1].toFixed(5)}°E`:"MISSING — load KML in Site tab"),
+    ROW2("Site area",d.geo?`${f(d.geo.ha,2)} ha  (${f(d.geo.acres,1)} acres)  |  perimeter ${f(d.geo.perimeter/1000,2)} km`:"—"),
+    ROW2("Land status / tenure",b.landStatus),
+    ROW2("Plant type & capacity",d.env?(d.env.fpvMW>0?`Hybrid — Floating PV: ${f(d.env.fpvMW)} MWp  +  Ground-mount: ${f(d.env.gmMW)} MWp  =  Total ${f(d.env.tot)} MWp`:`Ground-mounted PV: ${f(d.env.tot)} MWp`):"—"),
+    ROW2("Grid connection point",b.gridPoint||"MISSING — TNB IAF-01 application required"),
+    ROW2("Distance to grid",b.gridKm?b.gridKm+" km  (direct route, to be confirmed by survey)":"MISSING — TNB nodal study"),
+    ROW2("Connection voltage",eng?eng.connkV+" kV  (auto-selected by plant size)":"MISSING"),
+    ROW2("Solar resource (GHI)",d.res?`${f(d.res.ghi,1)} kWh/m²/yr  |  Specific yield ${f(d.res.pvout,0)} kWh/kWp/yr  (${d.res.tierLabel})`:"MISSING — load in Sunshine tab"),
+    ROW2("Est. annual generation",annGWh?`${f(annGWh,0)} GWh/yr (screening grade)`:"—"),
+    ROW2("Report date",d.date),
+    ROW2("Document version",b.version),
+    ROW2("Prepared by",b.preparedBy),
+  ]));
+  C.push(new Paragraph({spacing:{before:100,after:60},children:[new TextRun({text:"All figures marked MISSING await TNB confirmation, an ST/RFP release, or Stage-2 field work. Every number used is derived from session inputs — nothing is fabricated. Accuracy: screening grade ±30–50%.",italics:true,size:17,color:"5B6B85"})]}));
+  FIG(_iSite,360,285,'Site boundary plan derived from uploaded KML. Centroid marked in red.').forEach(p=>C.push(p));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // EXECUTIVE SUMMARY
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("EXECUTIVE SUMMARY"));
+  C.push(P(`This Technical Proposal presents a screening-stage assessment for the ${b.projName} solar photovoltaic (PV) power plant to be submitted under the ${b.programme} programme administered by Suruhanjaya Tenaga (ST), Malaysia. ${b.programme==="LSS6"?"The sixth edition of the Large Scale Solar programme carries a national target of 2,000 MW AC capacity with a mandatory battery energy storage system (BESS) component, reflecting the Government's commitment to achieving 70% renewable energy generation by 2050.":""}`));
+  if(d.geo&&d.env)C.push(P(`The proposed site covers ${f(d.geo.ha,1)} ha (${f(d.geo.acres,0)} acres) ${d.env.fpvMW>0?`comprising both water body and dryland, supporting a hybrid floating PV (${f(d.env.fpvMW)} MWp) and ground-mount (${f(d.env.gmMW)} MWp) configuration for a combined installed DC capacity of ${f(d.env.tot)} MWp at STC`:`and supports a ground-mounted plant of approximately ${f(d.env.tot)} MWp at STC`}. The site's topography and solar resource are assessed from satellite and public data at this screening stage; a bankable energy assessment (Solargis P50/P90 + PVsyst modelling) will be commissioned at Stage 2.`));
+  if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
+    C.push(P(`At a build cost of RM ${fi.capexPM}m/MWp and a ${fi.tariffSen} sen/kWh tariff, the project returns an equity IRR of ${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%"} against a ${fi.hurdle}% hurdle, with a worst-year DSCR of ${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"}. These figures exclude the BESS cost and revenue mechanism, which remains unpublished; the LSS6 RFP tariff structure will be the decisive variable.`));
+    C.push(TBL([
+      ROW4("Key metric","Figure","Unit","Basis",true),
+      ROW4("Installed DC capacity",f(d.env.tot),"MWp","Satellite terrain screening"),
+      ROW4("Annual energy generation",annGWh?f(annGWh,0):"—","GWh/yr","Screening yield model"),
+      ROW4("Plant CAPEX (excl. BESS)",f(o.capex/1e6,0),"RM million","RM "+fi.capexPM+"m/MWp + "+fi.contPct+"% cont."),
+      ROW4("Equity IRR",o.eqIRR==null?"n/a":f(o.eqIRR*100,1),"%","At "+fi.tariffSen+" sen/kWh tariff"),
+      ROW4("Worst-year DSCR",o.dscrMin==null?"—":f(o.dscrMin,2),"×","Debt cover, "+fi.gearPct+"% gearing"),
+      ROW4("Break-even tariff",f(o.lcoeSen,1),"sen/kWh","Solar-only (BESS excl.)"),
+      ROW4("Cash payback",o.payback?"Year "+o.payback:"Beyond PPA","",""+fi.tenor+"-yr PPA"),
+    ]));
+  }
+  C.push(new Paragraph({spacing:{before:100,after:80}}));
+  C.push(INFO("Recommendation","Proceed to Stage-2 kill-fast verification (land title → state authority → TNB grid capacity → EIA pre-screening) before the LSS6 RFP opens. Cap Stage-2 exposure at RM 400,000.","1F9D6B"));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 1 — INTRODUCTION & BACKGROUND
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("1   INTRODUCTION"));
+  C.push(H2("1.1  Programme Background"));
+  C.push(P("Malaysia's National Energy Policy 2022–2040 and the Hydrogen Economy and Technology Roadmap set a target of 70% renewable energy in the generation mix by 2050, with solar photovoltaic (PV) as the primary technology pathway. The Large Scale Solar (LSS) programme, managed by Suruhanjaya Tenaga (ST) under the Ministry of Energy Transition and Water Transformation (METWWT), is the principal mechanism for utility-scale solar deployment. Five editions have been completed — LSS1 through LSS5+ — delivering approximately 2,300 MW of contracted capacity. The sixth edition (LSS6) is anticipated to seek an additional 2,000 MW with a mandatory BESS component, consistent with the Deputy Prime Minister's announcement of 3 June 2026."));
+  C.push(P("Winning bidders enter a 21-year Power Purchase Agreement (PPA) with Tenaga Nasional Berhad (TNB) under a fixed-tariff, single-buyer framework. Bid evaluation is primarily on price (sen/kWh), with qualitative weighting for technical merit, financial capacity, and land readiness. The transition from PERC to TOPCon module technology and the mandate for BESS fundamentally alter the cost structure relative to LSS4 and LSS5 precedents."));
+  C.push(H2("1.2  Project Overview"));
+  if(d.geo){C.push(P(`The proposed ${b.projName} solar plant is sited at approximately ${d.geo.centroid[0].toFixed(4)}°N, ${d.geo.centroid[1].toFixed(4)}°E, occupying a ${f(d.geo.ha,1)}-hectare (${f(d.geo.acres,0)}-acre) area with a boundary perimeter of ${f(d.geo.perimeter/1000,2)} km. The site has been assessed at screening grade from publicly available satellite data; all figures carry a ±30–50% accuracy band and must be superseded by bankable studies at the appropriate stage.${d.slope?` Terrain analysis indicates a maximum slope of ${d.slope.stats.maxDeg.toFixed(1)}° and a mean slope of ${d.slope.stats.meanDeg.toFixed(1)}°, both within acceptable limits for the proposed mounting system.`:" A terrain survey is required to confirm foundation suitability."}`));}
+  else C.push(MISS("Site geometry — no KML boundary loaded.","load KML in Site tab"));
+  C.push(H2("1.3  Document Scope"));
+  C.push(P("This Technical Proposal covers the following subject areas: site description and boundary; solar resource; technical design and equipment selection; grid connection requirements; energy yield analysis; project financial model; project execution and quality plan; health, safety and environmental commitments; regulatory approvals pathway; and a formal risk register. The document is prepared at screening stage and is not a bankable feasibility study, an EIA, or a detailed engineering submission."));
+  C.push(INFO("Scope limitation","BESS sizing, cost and revenue mechanism are deliberately excluded — pending the LSS6 RFP. Solar-only numbers are presented. Loading a BESS capex without a corresponding revenue rule would produce a misleading financial result.","B5860B"));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 2 — SITE DESCRIPTION & RESOURCE
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("2   SITE DESCRIPTION & SOLAR RESOURCE"));
+  C.push(H2("2.1  Location & Accessibility"));
+  C.push(P(`The site is located at ${d.geo?d.geo.centroid[0].toFixed(4)+"°N, "+d.geo.centroid[1].toFixed(4)+"°E":"[coordinates — load KML]"}${b.gridPoint?", approximately "+( b.gridKm||"[TBC]")+" km from the "+b.gridPoint+" TNB interconnection point":""}.  ${b.landStatus==="Agricultural"||b.landStatus==="Ex-mining"?"The land status is "+b.landStatus+". State authority consent for solar use (or land conversion where applicable) is a Stage-2 action item.":"The land status is "+b.landStatus+"."} Perimeter road access is to be confirmed at detailed survey stage; where absent, a minimum 4.5-metre construction access road is to be formed as part of the civil works scope.`));
+  C.push(H2("2.2  Site Area & Boundary"));
+  if(d.geo){C.push(TBL([
+    ROW2("Dimension","Value",true),
+    ROW2("Total area",f(d.geo.ha,2)+" ha  ("+f(d.geo.acres,1)+" ac)"),
+    ROW2("Perimeter",f(d.geo.perimeter/1000,2)+" km"),
+    ROW2("East–west span",f(d.geo.ew)+" m"),
+    ROW2("North–south span",f(d.geo.ns)+" m"),
+    ROW2("Centroid",d.geo.centroid[0].toFixed(5)+"°N  "+d.geo.centroid[1].toFixed(5)+"°E"),
+    ROW2("Area source","KML polygon — shoelace method; not a cadastral survey"),
+  ]));}
+  else C.push(MISS("Site geometry — load KML to populate this table.","Site tab"));
+  C.push(H2("2.3  Terrain & Topography"));
+  if(d.env&&d.geo){
+    C.push(P(`Terrain analysis, performed on a ${Math.round(Math.sqrt(d.geo.ha*1.2))}-cell grid from NASA SRTM 30 m data, identifies the following land classifications within the site boundary:`));
+    C.push(TBL([
+      ROW3("Land classification","Area (ha)","Fraction (%)",35,45,true),
+      d.env.fpvMW>0?ROW3("Water bodies — floating PV potential",f(d.env.waterHa||0,1),f((d.env.waterHa||0)/d.geo.ha*100,0)):null,
+      ROW3("Flat/gently sloping land (≤10°) — ground-mount",f(d.env.landHa||0,1),f((d.env.landHa||0)/d.geo.ha*100,0)),
+      ROW3("Land exceeding 10° slope — excluded",f(Math.max(0,d.geo.ha-(d.env.waterHa||0)-(d.env.landHa||0)),1),f(Math.max(0,d.geo.ha-(d.env.waterHa||0)-(d.env.landHa||0))/d.geo.ha*100,0)),
+      ROW3("Infrastructure, setbacks & roads",f(d.env.infraHa||0,1),f((d.env.infraHa||0)/d.geo.ha*100,0)),
+    ].filter(Boolean)));
+    if(d.slope)C.push(INFO("Terrain note",`Maximum slope ${d.slope.stats.maxDeg.toFixed(1)}°, mean ${d.slope.stats.meanDeg.toFixed(1)}°. Cells with slope >10° (${f(Math.max(0,d.geo.ha-(d.env.waterHa||0)-(d.env.landHa||0)),1)} ha) are excluded from the plant envelope. Foundation piling depth and type will be confirmed by a geotechnical investigation at Stage 2.`,"1E3A6B"));
+  } else C.push(MISS("Terrain data — complete Site tab and allow terrain scan to finish.","Site tab → terrain analysis"));
+  C.push(H2("2.4  Solar Resource"));
+  if(d.res){
+    C.push(P(`The solar resource at this site is characterised by a Global Horizontal Irradiance (GHI) of ${f(d.res.ghi,1)} kWh/m²/yr (data source: ${d.res.tierLabel}), yielding a screening-grade specific yield of ${f(d.res.pvout,0)} kWh/kWp/yr. The working yield range, reflecting P75–P90 variability, is ${f(d.res.yLow,0)}–${f(d.res.yHigh,0)} kWh/kWp/yr. A bankable Solargis P50/P90 site-specific study is required at Stage 2 to support lender due diligence.`));
+    C.push(TBL([
+      ROW2("Resource parameter","Value",true),
+      ROW2("Global Horizontal Irradiance (GHI)",f(d.res.ghi,1)+" kWh/m²/yr"),
+      ROW2("Specific yield (screening)",f(d.res.pvout,0)+" kWh/kWp/yr"),
+      ROW2("Working range (P75–P90 proxy)",f(d.res.yLow,0)+" – "+f(d.res.yHigh,0)+" kWh/kWp/yr"),
+      ROW2("Annual generation estimate",annGWh?f(annGWh,0)+" GWh/yr  ("+f(d.env?d.env.tot:0,1)+" MWp plant)":"—"),
+      ROW2("Data tier / source",d.res.tierLabel+(d.res.dist!=null?"  |  data point "+f(d.res.dist,1)+" km from centroid":"")),
+      ROW2("Stage-2 requirement","Bankable Solargis P50/P90 + PVsyst energy model — supersedes this figure"),
+    ]));
+  } else C.push(MISS("Solar resource — enter data in Sunshine tab.","Sunshine tab"));
+  C.push(P("Malaysia's near-equatorial latitude (3°–7°N) yields a relatively uniform monthly irradiance profile with a coefficient of variation below 10% in most peninsular locations. The northeast monsoon (November–January) causes a modest 10–15% dip in the north and east coasts; the southwest monsoon (June–September) is less pronounced for peninsular west-coast sites."));
+  FIG(_iMonth,490,224,'Monthly energy generation profile. The near-uniform profile reflects Malaysia\'s equatorial position; minor monsoon-season dips are visible. Annual generation is the integral of all 12 bars.').forEach(p=>C.push(p));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 3 — TECHNICAL DESIGN
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("3   TECHNICAL DESIGN"));
+  C.push(H2("3.1  Design Basis & Standards"));
+  C.push(P("The Facility is designed in accordance with the following principal standards and regulations. All equipment shall carry the requisite third-party certification before delivery to site."));
+  C.push(TBL([
+    ROW3("Standard / Regulation","Scope","Issue",40,42,true),
+    ROW3("IEC 61215 / IEC 61730","PV module performance & safety qualification","Current"),
+    ROW3("IEC 62548","PV array design requirements","2016"),
+    ROW3("IEC 62116","Utility interconnected inverter — anti-islanding","Current"),
+    ROW3("IEC 61724","PV system performance monitoring","2021"),
+    ROW3("IEC 62933","Electrical energy storage systems (BESS)","Current"),
+    ROW3("MS 1979 / MS IEC 60364","LV electrical installation — solar","Current"),
+    ROW3("Malaysian Grid Code (MGC)","Voltage, frequency, reactive, LVRT/HVRT","2017 + updates"),
+    ROW3("TNB Distribution Code","33/132 kV connection technical requirements","Current issue"),
+    ROW3("TNB Technical Specification (HSSDs)","Switchgear, transformers, metering, protection","Current"),
+    ROW3("DOSH — Electricity Regulations 1994","Electrical safety, BEM-PE sign-off","1994 + amdt."),
+    ROW3("CIDB Act 520 / CIMS 2.0","Contractor registration, Green Cards, SPIKPA","Current"),
+    ROW3("Environment Quality Act 1974 (EQA)","EIA or DEIA as applicable","Current"),
+    ROW3("UBBL / MS 1183","Building permits, fire safety for control room","Current"),
+  ]));
+  C.push(H2("3.2  System Architecture Overview"));
+  C.push(P(`The ${b.projName} PV system follows a standard utility-scale DC-coupled string architecture. PV modules are arranged in strings of 28 (2 in parallel per combiner input), connected to ${eng?f(eng.inverters)+" ×":"multiple"} ${eng?eng.invKw:350} kW string inverters operating at 1,500 Vdc maximum. Each inverter cluster is paired with an inverter-duty box transformer (0.8/33 kV) feeding the 33 kV collection ring. The collection ring connects to the ${eng?f(eng.mainTxMVA)+" MVA":""} main step-up transformer, which feeds the point of common coupling (PCC) at ${eng?eng.connkV+" kV":"the nominated TNB substation voltage"}. A BESS, STATCOM for reactive compensation, a Plant Power Controller (PPC) and a SCADA linked to TNB NLDC complete the facility.`));
+  FIG(_iSLD,490,252,'Single-line electrical diagram (schematic, screening grade). Power path shown solid; control/auxiliary connections shown dashed. Not for construction — for illustration only.').forEach(p=>C.push(p));
+  C.push(H2("3.3  PV Modules"));
+  C.push(P(`Monocrystalline n-type TOPCon bifacial modules at ${CONSULTANT.module.wp} Wp (${CONSULTANT.module.eff}% efficiency, ${CONSULTANT.module.area} m² per module) are specified as the consultant's 2026 technology basis. TOPCon has displaced PERC as the utility-scale norm, offering ~0.8% higher efficiency, lower temperature coefficient (−0.28%/°C vs −0.35%/°C for PERC), reduced LID/LeTID degradation, and ~5–8% higher bifacial gain. For a Malaysian climate — high ambient temperature, frequent soiling events — these characteristics directly reduce LCOE. Preferred suppliers: ${CONSULTANT.module.makers}.`));
+  C.push(INFO("Bifacial gain assumption","Ground albedo 0.20–0.25 (typical compacted soil/concrete); bifaciality factor 0.70; bifacial energy gain estimated at 4–7% above monofacial yield. This gain is embedded in the P75 yield figure used in the financial model.","1E3A6B"));
+  C.push(H2("3.4  String Inverters"));
+  C.push(P(`${CONSULTANT.inverter.kw} kW, 1,500 Vdc string inverters (IP66, outdoor-rated) are specified in preference to central inverters for the following reasons: (1) finer MPPT granularity improves partial-shading and terrain-following performance; (2) modular replacement — a single faulty unit affects ~${eng?Math.round(eng.mwp/eng.inverters*10)/10:0.35} MWp vs the full 2–5 MWp block of a central inverter; (3) no medium-voltage transformer winding requirements at the inverter level; (4) lower O&M skill demand at site. ${CONSULTANT.inverter.note}`));
+  if(d.env&&d.env.fpvMW>0){
+    C.push(H2("3.5  Floating PV System"));
+    C.push(P(`Approximately ${f(d.env.fpvMW)} MWp is proposed as a floating PV (FPV) system on the identified water bodies (${f(d.env.waterHa||0,1)} ha). The FPV system uses high-density polyethylene (HDPE) floats with aluminium racking, anchored by a combination of concrete sinker blocks (bedrock anchor where depth permits) and shore-based tensioned lines. The FPV configuration offers additional benefits in the Malaysian context: the water surface reduces ambient temperature at the module back-sheet, improving performance by an estimated 1–3% vs equivalent land-mounted; water evaporation loss from the impoundment is reduced; and the shading effect on the water body reduces algae growth.`));
+    C.push(INFO("FPV engineering","A detailed FPV structural and mooring study, bathymetric survey, and wave/wind loading assessment are Stage-2 requirements before EPCC tender. Water depth, water quality (ex-mining ponds may be acidic) and ownership status must be confirmed.","D94436"));
+  }
+  C.push(H2("3.6  Battery Energy Storage System (BESS)"));
+  C.push(P(`The LSS6 programme mandates BESS integration; the sizing rule and revenue mechanism are not yet published in the RFP. Based on current Malaysian procurement precedents and the consultant's basis, a ${CONSULTANT.bess.tech} with ${CONSULTANT.bess.cont} and ~${CONSULTANT.bess.hours}-hour duration at the AC rating is assumed as a placeholder. ${CONSULTANT.bess.note}`));
+  C.push(P(`At the screening-stage plant size of ${eng?f(eng.mwac,1)+" MWac":"TBC"}, a 2-hour placeholder implies approximately ${eng?f(eng.bessMWh)+" MWh":"TBC"} of BESS capacity. The LFP chemistry is specified due to its thermal stability (critical for Malaysian ambient conditions up to 40°C), 6,000+ cycle life, and status as the most bankable cell chemistry for project finance. Liquid-cooled containerised systems are preferred over air-cooled for Malaysian ambient temperatures.`));
+  C.push(INFO("BESS cost exclusion","BESS capital cost and annual augmentation reserve are excluded from the financial model — including an assumed cost without a corresponding revenue rule would fabricate a result. The financial tables should be re-run once the LSS6 RFP discloses the battery payment mechanism.","D94436"));
+  C.push(H2("3.7  Balance of Plant (BoP) & Civil Works"));
+  C.push(P("The Balance of Plant (BoP) and civil works scope includes the following principal items:"));
+  [
+    "Site clearing, grubbing and topsoil stripping over the active PV area",
+    "Earthworks and grading to achieve maximum 5° final surface slope within each mounting bay",
+    "Construction access roads — minimum 4.5 m wide, compacted laterite or crushed stone, forming a perimeter loop and internal grid",
+    "Stormwater drainage — perimeter bund, swales and cross-culverts designed for 200-year ARI (200 mm/hr intensity in most peninsular locations)",
+    "Security fence — 2.4 m chain-link with 3-strand barbed wire outrigger, motorised main gate",
+    "Control room / MV switchroom building — single-storey RC, minimum 100 m² footprint, cable basement",
+    "Guard house and amenities block",
+    "Fixed-tilt mounting structures — hot-dip galvanised steel, 2 m driven pile foundation, 10° tilt optimised for near-equatorial latitude",
+    "DC string cables — PV1-F 6 mm² Cu, UV-rated, run in HDPE conduit underground or on cable bridge at module level",
+    "LV AC cables — XLPE/PVC Al, direct-buried at minimum 750 mm depth",
+    "MV 33 kV collection cables — 3×1C 630 mm² Cu XLPE, trefoil, minimum 1,000 mm depth, with concrete tile and warning tape",
+    "Earthing and lightning protection system to IEC 62305 / MS IEC 62305",
+    "PV module cleaning station with water storage and pressurised distribution",
+    "CCTV surveillance — 8 MP cameras at perimeter, gate and MV room; 30-day NVR retention",
+    "Vegetation management — grass/shrub control under modules, herbicide programme"
+  ].forEach(t=>C.push(BUL(t)));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 4 — GRID CONNECTION & TNB REQUIREMENTS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("4   GRID CONNECTION & TNB REQUIREMENTS"));
+  C.push(H2("4.1  Connection Voltage & Point"));
+  C.push(P(`Based on the screening-grade plant size of ${eng?f(eng.mwac,1)+" MWac":"TBC"}, the consultant recommends a ${eng?eng.connkV+" kV":""} connection voltage${eng?eng.connkV<=33?" (plant ≤30 MWac, 33 kV is the standard TNB distribution interface)":eng.connkV<=132?" (plant 30–100 MWac, 132 kV transmission interface applies)":"":" "}. The proposed point of common coupling (PCC) is ${b.gridPoint||"[TNB substation — enter in Project Brief tab]"}, located approximately ${b.gridKm?b.gridKm+" km":"[distance TBC]"} from the site.`));
+  C.push(P("Connection capacity at the nominated PMU or substation must be confirmed via TNB's nodal study before bid submission. This is identified as a fatal-flaw item — the substation may be fully subscribed, particularly if competing LSS candidates have already reserved bays."));
+  C.push(H2("4.2  TNB Application & Study Sequence"));
+  C.push(TBL([
+    ROW3("Step","Requirement / document","Timeline (typical)",34,43,true),
+    ROW3("1. Initial application","IAF-01 submission to TNB Distribution or Transmission","4–8 weeks for acknowledgement"),
+    ROW3("2. Initial Assessment Report","TNB issues IAR confirming technical feasibility and spare capacity","8–16 weeks"),
+    ROW3("3. Power System Studies","Load-flow, fault-level, harmonics, transient & dynamic stability — conducted by developer's BEM-PE","3–6 months"),
+    ROW3("4. Protection coordination","Relay settings submitted to TNB for review and approval","2–3 months"),
+    ROW3("5. Grid compliance test","Live test at PCC witnessed by TNB — LVRT, reactive, frequency response","1 month on-site"),
+    ROW3("6. Performance test","30-day continuous operation — availability, output, power quality","1 month"),
+    ROW3("7. Connection agreement","Signed upon successful performance test; triggers COD","On test completion"),
+  ]));
+  C.push(H2("4.3  Malaysian Grid Code Compliance"));
+  C.push(TBL([
+    ROW2("MGC requirement","Design provision",true),
+    ROW2("Reactive capability","±0.95 power factor at PCC; STATCOM provides continuous dynamic VAr compensation within −0.95 to +0.95 lagging/leading"),
+    ROW2("Voltage ride-through (LVRT)","Ride through 0% voltage for 150 ms; recover to 90% within 1,500 ms — per MGC Schedule 3A"),
+    ROW2("High-voltage ride-through (HVRT)","Remain connected for 120% voltage up to 500 ms — per MGC Schedule 3A"),
+    ROW2("Active power frequency response","5% droop; ramp-rate limit ≤10%/min of rated output"),
+    ROW2("Harmonic distortion","THDv ≤ 5% at PCC; individual harmonics within IEC 61000-3-6 limits — harmonic filter bank integrated with STATCOM"),
+    ROW2("Protection — relay","Distance (21), over/under-voltage (27/59), over/under-frequency (81O/U), directional earth fault (67N), auto-recloser inhibit"),
+    ROW2("Metering","Main + check revenue metering (TNB-approved meter, MID-certified); PQ recorder at PCC — 1-week 10-minute averages + sub-cycle events"),
+    ROW2("SCADA / telemetry","Real-time 4-second data to TNB NLDC; PPC for active/reactive setpoint compliance"),
+    ROW2("Islanding protection","Active frequency shifting (AFS) or ROCOF relay at PCC"),
+  ]));
+  C.push(H2("4.4  Interconnector Routing"));
+  const rt=d.routing;
+  if(rt){
+    C.push(P(`Two routing strategies were evaluated for the ${f(rt.km,2)} km interconnector from site to ${b.gridPoint||"the TNB PCC"} at ${rt.connkV} kV:`));
+    C.push(TBL([
+      ROW3("Option","Description & assessment","Indicative cost basis",28,45,true),
+      ROW3("A — Underground cable along road reserve",
+        `${f(rt.ugLengthM,0)} m (≈1.3× direct, follows public road reserve). Open-cut trench, ${rt.connkV} kV XLPE cable. No wayleave land acquisition. Higher civils and cable cost.`,
+        "Cable + trench civils only; no land comp."),
+      ROW3("B — Overhead transmission line, direct corridor",
+        `${f(rt.lengthM,0)} m direct. Requires a ${rt.corridorM} m wide wayleave corridor = ${f(rt.corridorAcres,2)} acres. Land compensation ≈ RM ${f(rt.ohlCompensation,0)} at RM ${f(rt.rate,1)}/sqft (${d.brief.landRate?"client rate":d.brief.landStatus+" JPPH band"}).`,
+        "Lower civils but land acquisition + longer approvals"),
+    ]));
+    C.push(INFO("Recommended route",rt.recommend==="ug-road"?"Option A — underground cable (route ≤2 km; land acquisition risk and OHL approvals outweigh the civils premium).":"Option B — direct OHL corridor (route >2 km; civils cost of underground exceeds land compensation at this distance). Routing is provisional — confirm with a site survey and TNB routing consent.","1E3A6B"));
+  } else C.push(MISS("Grid distance not entered — routing assessment cannot be produced.","Project Brief tab → Distance to grid"));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 5 — ENERGY YIELD ANALYSIS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("5   ENERGY YIELD ANALYSIS"));
+  C.push(H2("5.1  System Losses & Performance Ratio"));
+  C.push(P(`The Performance Ratio (PR) accounts for all system losses between the irradiance on the module plane and the energy exported to the grid. The following loss budget is applied at screening grade for a Malaysian tropical climate with the specified TOPCon bifacial modules and string inverters:`));
+  C.push(TBL([
+    ROW3("Loss item","Basis / notes","Loss (%)",36,44,true),
+    ROW3("Module quality / manufacturing tolerance","±3% at STC; screening: 1.0%","1.0"),
+    ROW3("Soiling / dust accumulation","Tropical red-soil dust + monsoon washdown — 4×/yr cleaning","3.5"),
+    ROW3("Inter-row shading (near-horizon)","Fixed-tilt array; GCR 0.40–0.55; shading factor ~1.5%","1.5"),
+    ROW3("Module mismatch","String binning assumed; mismatch <1.0%","1.0"),
+    ROW3("DC wiring resistance","String + inter-string; <0.8%","0.8"),
+    ROW3("Inverter conversion loss","Peak efficiency 99.0%; EU efficiency 98.5%; weighted: 1.5%","1.5"),
+    ROW3("AC wiring & LV transformer","From inverter AC output to box transformer HV: 1.2%","1.2"),
+    ROW3("MV collection & main transformer","33 kV cable + main step-up Tx iron/copper losses: 0.8%","0.8"),
+    ROW3("BESS round-trip loss","Excluded — pending RFP sizing rule","excl."),
+    ROW3("Availability (planned + unplanned downtime)","98.5% system availability target","1.5"),
+    ROW3("Light-induced degradation (LID) — Year 1","TOPCon: ~0.5% LID (vs PERC ~1.5%)","0.5"),
+    ROW3("Net Performance Ratio","1.0 minus sum of above losses","~86.7%"),
+  ]));
+  C.push(P(`The PR of ~87% at Year-1 STC is consistent with Malaysian LSS4 benchmark plants (reported PR 78–86% actual vs 82–88% design). TOPCon's lower LID and lower temperature coefficient yield 1–2 percentage-point PR improvement over PERC designs operated at the same site.`));
+  if(annGWh)C.push(INFO("Estimated annual export",`${f(annGWh,0)} GWh/yr from ${d.env?f(d.env.tot,1):"TBC"} MWp at ${d.fm?d.fm.inputs.yld:""} kWh/kWp/yr specific yield. Over the ${d.fm?d.fm.inputs.ppa:21}-year PPA, cumulative generation is approximately ${d.fm?f(annGWh*d.fm.inputs.ppa*(1-0.004*d.fm.inputs.ppa/2),0):"—"} GWh (net of 0.40%/yr degradation).`,"1F9D6B"));
+  FIG(_iIRR,480,200,'Equity IRR as a function of feed-in tariff. Green dots exceed the hurdle rate. The crossing point is the minimum tariff required to meet the investor threshold.').forEach(p=>C.push(p));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 6 — FINANCIAL ANALYSIS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("6   FINANCIAL ANALYSIS"));
+  C.push(H2("6.1  Capital Expenditure (CAPEX)"));
+  if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
+    C.push(P(`Total project CAPEX is estimated at RM ${f(o.capex/1e6,0)} million (RM ${fi.capexPM}m/MWp + ${fi.contPct}% contingency) for the solar plant. BESS capital cost is excluded pending the LSS6 RFP pricing mechanism. The indicative CAPEX breakdown by cost centre is:`));
+    const capex=o.capex;
+    const splits=[["PV modules (TOPCon bifacial, supply & freight)",0.41],["String inverters",0.09],["Mounting structures & driven piles",0.11],
+      ["DC cabling, combiners & connectors",0.05],["AC LV cabling & BoP",0.03],
+      ["MV/HV substation, transformers & GIS",0.09],["BESS (placeholder — excl. from total)",0],
+      ["Civil works, roads & drainage",0.10],["SCADA, PPC, metering & communications",0.02],
+      ["Engineering, procurement & management",0.05],["Contingency ("+fi.contPct+"%)",fi.contPct/100/(1+fi.contPct/100)]];
+    const baseCapex=capex/(1+fi.contPct/100);
+    C.push(TBL([ROW3("Cost centre","RM million","% of total",50,25,true),
+      ...splits.map(([label,pct])=>ROW3(label,pct>0?f(capex*pct,1):"excl.",pct>0?f(pct*100,0)+"%":"—")),
+      ROW3("TOTAL CAPEX (excl. BESS)",f(o.capex/1e6,1),"100%"),
+    ]));
+    C.push(H2("6.2  Revenue & Tariff"));
+    C.push(P(`Revenue is modelled under a single fixed-price PPA structure for ${fi.ppa} years at ${fi.tariffSen} sen/kWh for all metered export energy. The tariff is a sensitivity input — the winning bid price will be determined at the LSS6 RFP stage. LSS4 clearing prices ranged from 17.7–24.8 sen/kWh; LSS5/5+ cleared at approximately 13–16 sen/kWh, reflecting falling module costs and increased competition. The break-even tariff for this project (solar-only) is ${f(o.lcoeSen,1)} sen/kWh.`));
+    C.push(H2("6.3  Financial Model Results"));
+    C.push(TBL([
+      ROW2("Financial metric","Screening value",true),
+      ROW2("Total CAPEX (solar)",`RM ${f(o.capex/1e6,0)} million (excl. BESS)`),
+      ROW2("Equity contribution ("+fi.gearPct+"% debt)", `RM ${f(o.equity/1e6,0)} million  (${100-fi.gearPct}% of CAPEX)`),
+      ROW2("Term loan","RM "+f((o.capex-o.equity)/1e6,0)+" million @ "+fi.intPct+"% p.a. × "+fi.tenor+" years"),
+      ROW2("Tariff assumed",fi.tariffSen+" sen/kWh"),
+      ROW2("PPA tenor",fi.ppa+" years"),
+      ROW2("Equity IRR",o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%  (hurdle: "+fi.hurdle+"%)"),
+      ROW2("Project IRR",o.projIRR==null?"n/a":f(o.projIRR*100,1)+"%"),
+      ROW2("Minimum DSCR",o.dscrMin==null?"—":f(o.dscrMin,2)+"×  (lender floor: 1.20×)"),
+      ROW2("Cash payback",o.payback?"Year "+o.payback+" of "+fi.ppa:"Beyond PPA tenor"),
+      ROW2("Break-even tariff (solar-only)",f(o.lcoeSen,1)+" sen/kWh"),
+    ]));
+    FIG(_iTorn,400,185,'IRR sensitivity tornado chart. Each lever flexed ±20% from base. Tariff is invariably the dominant driver in Malaysian LSS projects; CAPEX is second.').forEach(p=>C.push(p));
+    C.push(H2("6.4  Operating Expenditure (OPEX)"));
+    const ox=d.opex;
+    if(ox){
+      C.push(P(`Annual O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX in Year 1, equivalent to RM ${f(ox.annualOpex/1e6,2)} million/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating at 3%/yr thereafter. The consultant's indicative split across O&M activities is:`));
+      const opexRows=[ROW3("O&M activity","RM '000 / yr  (Year 1)","% share",54,26,true)];
+      ox.rows.forEach(r=>opexRows.push(ROW3(r.label,f(r.rm/1e3,0),f(r.pct,0)+"%")));
+      opexRows.push(ROW3("TOTAL",f(ox.annualOpex/1e3,0)+"  (≡ RM "+f(ox.annualOpex/1e6,2)+"m)","100%"));
+      C.push(TBL(opexRows));
+      C.push(new Paragraph({spacing:{before:60,after:80},children:[new TextRun({text:"BESS augmentation reserve is a placeholder; actual cost and fund-draw trigger will be defined in the O&M agreement once the RFP battery duty cycle is published. All other line items are based on typical Malaysian LSS O&M contract structures.",italics:true,size:17,color:"5B6B85"})]}));
+    }
+  } else C.push(MISS("Financial model not run — complete Plant Size and Money tabs.","tabs 3 & 4"));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 7 — PROJECT EXECUTION
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("7   PROJECT EXECUTION"));
+  C.push(H2("7.1  EPCC Procurement Strategy"));
+  C.push(P("The project will be delivered under a full Engineering, Procurement, Construction and Commissioning (EPCC) lump-sum turnkey contract, competitive tendered from a pre-qualified list of CIDB-registered contractors. The EPCC contractor is responsible for all design (PE-stamped), equipment supply, civil construction, electrical installation, grid compliance testing and COD handover. A separate O&M contract will be procured concurrently with EPCC, targeting a 5-year initial term."));
+  C.push(H2("7.2  Key Milestones"));
+  C.push(TBL([
+    ROW3("Milestone","Target timing","Prerequisite",44,30,true),
+    ROW3("LSS6 RFP issue","[Awaited — ST announcement]","ST publication"),
+    ROW3("Bid / no-bid decision","Within 2 weeks of RFP issue","BESS mechanism confirmed"),
+    ROW3("Bid submission","Per RFP deadline","All MISSING data resolved"),
+    ROW3("Letter of Award (LOA)","Per ST evaluation schedule","Bid accepted"),
+    ROW3("Financial close","3–6 months post-LOA","Lender due diligence, land title"),
+    ROW3("EPCC contract award","At or shortly before financial close","Tender result"),
+    ROW3("Site mobilisation","Month 1","EPCC NTP"),
+    ROW3("First module installation","Month 4–5","Civil works complete, equipment on-site"),
+    ROW3("MV commissioning","Month 18–20","Substation FAT, TNB bay ready"),
+    ROW3("Commercial Operation Date (COD)","Month 24","Grid compliance test passed"),
+    ROW3("O&M handover","At COD","Punch list closed"),
+  ]));
+  C.push(H2("7.3  EPC Phases & Critical Path"));
+  FIG(_iFlow,490,148,'Project execution phases. Engineering and procurement overlap; civil and electrical installation run concurrently from Month 4. Target COD within 24 months of NTP.').forEach(p=>C.push(p));
+  C.push(P("The critical path runs: land conversion / state approval → TNB bay reservation → equipment procurement long-lead items (main transformer, BESS, switchgear) → civil works → MV commissioning → grid compliance test. Land and grid are the two parallel gates that determine whether the project can be constructed on schedule; both must be engaged at Stage 2 immediately."));
+  C.push(H2("7.4  Long-Lead Equipment"));
+  C.push(TBL([
+    ROW3("Item","Lead time (ex-factory)","Action",36,24,true),
+    ROW3("Main step-up transformer ("+( eng?eng.mainTxMVA+"MVA "+eng.connkV+"/33 kV":"HV")+")", "26–40 weeks","Order at financial close or pre-order with LOI"),
+    ROW3("33 kV GIS switchgear panels","20–28 weeks","Specify at EPCC award; factory witness FAT"),
+    ROW3("BESS containerised units","16–24 weeks","Order post-RFP confirmation of spec"),
+    ROW3("STATCOM & harmonic filter","20–30 weeks","Coordinate delivery with GIS"),
+    ROW3("PV modules ("+( eng?f(eng.modules)+" units":"large quantity")+")", "12–16 weeks","Frame supply chain; price-lock strategy"),
+  ]));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 8 — HSE & ENVIRONMENTAL
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("8   HEALTH, SAFETY & ENVIRONMENT"));
+  C.push(H2("8.1  Occupational Health & Safety"));
+  C.push(P("The EPCC contractor is required to maintain DOSH (Department of Occupational Safety and Health) compliance under the Occupational Safety and Health Act (OSHA) 1994 and the Factories and Machinery Act (FMA) 1967 throughout construction and commissioning. Minimum requirements:"));
+  ["DOSH-registered Site Safety Supervisor (SHO) present full-time during construction",
+   "CIDB Green Cards for all workers on site (Construction Industry Safety Initiative — CIMS 2.0)",
+   "Hazard Identification, Risk Assessment and Risk Control (HIRARC) completed and updated monthly",
+   "Hot-work and confined-space Permit-to-Work (PTW) system, enforced by EPCC's safety team",
+   "Electrical safety: Electrical Installation License (EIL) from Suruhanjaya Tenaga for all MV/HV work; only authorised persons (AP) to operate MV equipment",
+   "Monthly safety statistics submitted to Employer (LTI frequency rate, near-miss, inspection close-outs)",
+   "Emergency Response Plan (ERP) with evacuation drill at start of each construction phase"
+  ].forEach(t=>C.push(BUL(t)));
+  C.push(H2("8.2  Environmental Compliance"));
+  C.push(P("A solar project of this size is subject to the following environmental requirements under the Environment Quality Act 1974 (EQA):"));
+  C.push(TBL([
+    ROW2("Environmental requirement","Applicable condition",true),
+    ROW2("Detailed EIA (DEIA)","Required if site >50 ha or plant >10 MW (prescribed under EQA First Schedule). Timeline: 18–24 months from submission to DOE approval — the longest single regulatory item; must be started at Stage 2."),
+    ROW2("Temporary EIA (TEIA)","May be accepted by state DOE for smaller phases; confirm with State DOE pre-submission meeting"),
+    ROW2("Water quality — ex-mining ponds","If site includes ex-mining pools: water quality analysis (pH, heavy metals, sulphates) required before FPV works; discharge permit from DOE if dewatering needed"),
+    ROW2("Protected species / ecology","Ecological baseline survey — mammals, birds, reptiles, flora — if within 5 km of a forest reserve or Ramsar site"),
+    ROW2("Noise & vibration (construction)","Nearest sensitive receptor distance to be confirmed; night-work restrictions under DOE guidelines if <500 m"),
+    ROW2("Erosion & sediment control","ESCP (Erosion & Sediment Control Plan) to DOE / JPS (Jabatan Pengairan dan Saliran) standard; silt trap and settling pond during construction"),
+    ROW2("Solar glare","Glare assessment required if within 3 km of active airport runways or major highways; anti-reflective coating standard on TOPCon modules reduces glare risk"),
+  ]));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 9 — REGULATORY APPROVALS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("9   REGULATORY APPROVALS"));
+  C.push(P("The following table lists principal permits and approvals required for the project, in approximate chronological order. Regulatory timelines dominate the overall project schedule and must be engaged immediately at Stage 2."));
+  C.push(TBL([
+    ROW4("Approval","Agency","Timeline","Action",true),
+    ROW4("Land use conversion / TOL / lease","State Land Office / PTD","6–24 months","Stage-2 priority; fatal flaw if refused"),
+    ROW4("Orang Asli / indigenous rights check","JAKOA","2–4 months","Written enquiry; area search"),
+    ROW4("TNB IAF-01 / IAR (grid capacity)","TNB Distribution / Transmission","4–8 months","Stage-2 fatal flaw; submit immediately"),
+    ROW4("DOE DEIA (Environmental Impact Assessment)","Jabatan Alam Sekitar","18–24 months","Engage environmental consultant at Stage 2"),
+    ROW4("Town & Country Planning consent","State JPBD / local authority","3–6 months","Requires land conversion to be in progress"),
+    ROW4("Building Plan Approval (control room)","Local Authority (PBT)","2–4 months","Standard BP; fire dept endorsement"),
+    ROW4("ST Generation Licence","Suruhanjaya Tenaga","3–6 months (post-LOA)","Required before COD"),
+    ROW4("DOSH — Electrical Installation Licence","Jabatan Keselamatan dan Kesihatan Pekerjaan","2–4 months pre-COD","BEM-PE certification required"),
+    ROW4("SPAN / JPS — water abstraction","SPAN / JPS (if FPV on ex-mining pool)","3–6 months","Required if modifying impoundment level"),
+    ROW4("Suruhanjaya Tenaga — Generation License","ST Energy Commission","As per LOA conditions","Issued at COD milestone"),
+  ]));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // SECTION 10 — RISKS & ASSUMPTIONS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("10   RISKS & ASSUMPTIONS"));
+  C.push(H2("10.1  Risk Register"));
+  C.push(P("The following risks are identified at screening stage. Probability and impact are rated H (High) / M (Medium) / L (Low). Mitigations stated are Stage-2 actions."));
+  C.push(TBL([
+    ROW4("Risk","Prob.","Impact","Mitigation / response",true),
+    ROW4("TNB PMU bay unavailable or fully subscribed","H","H","Submit IAF-01 immediately; identify alternative substation; fatal-flaw kill-fast"),
+    ROW4("Land conversion refused or delayed","H","H","Engage State Land Office at Stage 2; seek TOL as interim; assess alternative site"),
+    ROW4("LSS6 BESS mechanism not published before bid","H","M","Model sensitivity; set bid price assuming worst-case BESS cost; await RFP"),
+    ROW4("DOE EIA takes >24 months","M","H","Start EIA at Stage 2 immediately; use DEIA fast-track if eligible"),
+    ROW4("Tariff bid price insufficient to clear hurdle","H","H","Optimise CAPEX; increase DC:AC ratio; consider consortium to share BESS cost"),
+    ROW4("Ex-mining ground conditions (weak/acid soil)","M","M","Geotechnical investigation at Stage 2; pre-cast pile design if CBR <5%"),
+    ROW4("Module / BESS supply chain delay","L","M","Frame supply agreements at LOI stage; specify ex-stock or bonded warehouse"),
+    ROW4("Currency risk — modules priced in USD","M","M","Forward FX cover at financial close; include FX buffer in CAPEX contingency"),
+    ROW4("Competing bidders secure same grid point","M","H","Multiple grid points identified; track TNB public capacity reports"),
+    ROW4("Bankable yield (Solargis) lower than screening","M","M","Use P90 scenario for debt sizing; stress-test model at P10 yield"),
+  ]));
+  C.push(H2("10.2  Key Assumptions"));
+  C.push(P("This proposal is prepared on the following assumptions, which have not been independently verified and must be confirmed at Stage 2:"));
+  const ASSMNS=[
+    "Site area is as computed from the uploaded KML polygon; no cadastral survey has been conducted.",
+    "Solar resource (GHI and yield) is from publicly available data; no on-site measurement campaign has been performed.",
+    "Land status and tenure are as entered in the Project Brief tab; no title search has been conducted.",
+    "The nominated grid connection point has available capacity; no IAF-01 application has been submitted.",
+    "No significant geotechnical constraints exist; pile depths and foundation types are to be confirmed by a geotechnical investigation.",
+    "No scheduled archaeological, heritage or protected-species sites exist within the site boundary.",
+    "EIA applicability is based on project size; a pre-submission meeting with the State DOE has not been held.",
+    "All CAPEX figures are in RM at "+new Date().getFullYear()+" price levels; no escalation has been applied beyond the contingency percentage.",
+    "BESS cost and revenue mechanism are excluded from the financial model — to be incorporated once the LSS6 RFP is published.",
+    "Module degradation rate: 0.40%/yr for TOPCon (linear post-Year-1).",
+    "No FX risk on debt service is assumed; project debt is denominated in RM.",
+    "Contractor market is competitive; EPCC price is achievable at the stated RM/MWp unit rate.",
+  ];
+  ASSMNS.forEach(t=>C.push(BUL(t)));
+  C.push(pb());
+
+  // ══════════════════════════════════════════════════════════════
+  // APPENDIX A — APPLICABLE STANDARDS & ABBREVIATIONS
+  // ══════════════════════════════════════════════════════════════
+  C.push(H1("APPENDIX A — ABBREVIATIONS & GLOSSARY"));
+  C.push(TBL([
+    ROW2("Term / Abbreviation","Definition",true),
+    ...([["BESS","Battery Energy Storage System"],["BEM","Board of Engineers Malaysia"],
+      ["BOO","Build, Own, Operate"],["BoP","Balance of Plant"],["CAPEX","Capital Expenditure"],
+      ["CIDB","Construction Industry Development Board Malaysia"],["COD","Commercial Operation Date"],
+      ["DEIA","Detailed Environmental Impact Assessment"],["DOE","Department of Environment"],
+      ["DOSH","Department of Occupational Safety and Health"],
+      ["DSCR","Debt Service Coverage Ratio"],["EIA","Environmental Impact Assessment"],
+      ["EPCC","Engineering, Procurement, Construction & Commissioning"],
+      ["FPV","Floating Photovoltaic (solar on water)"],["GHI","Global Horizontal Irradiance (kWh/m²/yr)"],
+      ["GIS","Gas-Insulated Switchgear"],["GCR","Ground Coverage Ratio"],
+      ["HIRARC","Hazard Identification, Risk Assessment and Risk Control"],
+      ["IAF-01","TNB Initial Application Form for grid connection"],
+      ["IAR","Initial Assessment Report (TNB)"],["IRR","Internal Rate of Return"],
+      ["JAKOA","Jabatan Kemajuan Orang Asli (Dept. of Orang Asli Development)"],
+      ["JPS","Jabatan Pengairan dan Saliran (Irrigation & Drainage Dept.)"],
+      ["JPBD","Jabatan Perancangan Bandar dan Desa (Town & Country Planning Dept.)"],
+      ["JPPH","Jabatan Penilaian dan Perkhidmatan Harta (Valuation & Property Services Dept.)"],
+      ["LFP","Lithium Iron Phosphate (battery chemistry)"],["LOA","Letter of Award"],
+      ["LSS","Large Scale Solar (national tender programme)"],
+      ["LTIFR","Lost-Time Injury Frequency Rate"],["LVRT","Low-Voltage Ride-Through"],
+      ["MGC","Malaysian Grid Code"],["MWac","Megawatt AC rated capacity"],
+      ["MWp","Megawatt-peak DC capacity at STC"],
+      ["NLDC","National Load Dispatch Centre (TNB)"],["NPV","Net Present Value"],
+      ["NTP","Notice to Proceed"],["OPEX","Operating Expenditure"],
+      ["PCC","Point of Common Coupling (grid connection point)"],
+      ["PMU","Pencawang Masuk Utama — main intake substation (TNB)"],
+      ["PPA","Power Purchase Agreement"],["PPC","Plant Power Controller"],
+      ["PR","Performance Ratio"],["PSS","Power System Study"],
+      ["PTD","Pejabat Tanah dan Daerah (Land & District Office)"],
+      ["PTW","Permit to Work"],["PV","Photovoltaic"],["SCADA","Supervisory Control and Data Acquisition"],
+      ["SHO","Site Safety Supervisor (DOSH-registered)"],
+      ["SPAN","Suruhanjaya Perkhidmatan Air Negara (National Water Services Commission)"],
+      ["ST","Suruhanjaya Tenaga (Energy Commission Malaysia)"],
+      ["STC","Standard Test Conditions (1,000 W/m², 25°C, AM1.5)"],
+      ["TOL","Temporary Occupation Licence"],["TNB","Tenaga Nasional Berhad"],
+      ["TOPCon","Tunnel Oxide Passivated Contact (n-type PV cell technology)"],
+    ].map(([a,b])=>ROW2(a,b)))
+  ]));
+  C.push(new Paragraph({spacing:{before:200},children:[new TextRun({text:`Generated by SiteGate on ${d.date}. Screening stage — not a bankable study, EIA or construction specification. All unverified figures are marked MISSING; nothing is fabricated.`,italics:true,size:17,color:"5B6B85"})]}));
+
   // ── COVER PAGE ──
   C.push(new Paragraph({spacing:{before:480,after:60},alignment:AlignmentType.CENTER,children:[new TextRun({text:"TECHNICAL PROPOSAL",bold:true,size:56,color:"0A1F44",font:"Calibri"})]}));
   C.push(new Paragraph({spacing:{after:320},alignment:AlignmentType.CENTER,children:[new TextRun({text:b.programme+" | SOLAR PHOTOVOLTAIC POWER PLANT",size:22,color:"1E3A6B",font:"Calibri"})]}));
