@@ -273,10 +273,43 @@ tr:nth-child(even) td{background:#FAFBFD}
         </div>
       </div>
       <div class="divider"></div>
+      <!-- BESS -->
+      <h3 style="margin:0 0 10px;font-size:14px;color:var(--navy);letter-spacing:.03em">BATTERY ENERGY STORAGE SYSTEM (BESS)</h3>
+      <div class="card-row" style="align-items:center;gap:20px;flex-wrap:wrap">
+        <label class="fld" style="flex:0 0 auto;flex-direction:row;align-items:center;gap:8px;margin:0">
+          <span class="lb" style="margin:0">Include BESS?</span>
+          <select id="br-bessYN" style="width:auto">
+            <option value="yes">Yes — BESS included</option>
+            <option value="no">No — PV only</option>
+          </select>
+        </label>
+        <label class="fld" id="br-bessCapWrap">
+          <span class="lb">Power capacity <span class="hint">MW</span></span>
+          <input type="number" id="br-bessMW" placeholder="auto (25% of AC)" step="0.5" min="0">
+        </label>
+        <label class="fld" id="br-bessEnergyWrap">
+          <span class="lb">Energy capacity <span class="hint">MWh (2 h duration default)</span></span>
+          <input type="number" id="br-bessMWh" placeholder="auto (2 × MW)" step="1" min="0">
+        </label>
+      </div>
+      <div class="divider"></div>
+      <!-- OPEX / LAND -->
+      <h3 style="margin:0 0 10px;font-size:14px;color:var(--navy);letter-spacing:.03em">LAND LEASE / OPEX</h3>
+      <div class="card-row" style="align-items:center;gap:20px;flex-wrap:wrap">
+        <label class="fld">
+          <span class="lb">Land rental rate <span class="hint">RM / acre / year</span></span>
+          <input type="number" id="br-rentAcre" placeholder="e.g. 800" step="50" min="0">
+        </label>
+        <label class="fld">
+          <span class="lb">Annual rental increment <span class="hint">% per year</span></span>
+          <input type="number" id="br-rentEsc" placeholder="e.g. 3" step="0.5" min="0" max="20">
+        </label>
+      </div>
+      <div class="divider"></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
         <div class="stat gold"><div class="v" id="br-show-prog" style="font-size:15px;line-height:1.3">LSS6</div><div class="k">Programme</div></div>
         <div class="stat"><div class="v" id="br-show-date" style="font-size:13px;line-height:1.3">—</div><div class="k">Report date (auto)</div></div>
-        <div class="stat"><div class="v" style="font-size:15px">Rev 0</div><div class="k">Version (auto)</div></div>
+        <div class="stat"><div class="v" id="br-show-bess" style="font-size:13px;line-height:1.3">BESS: Yes</div><div class="k">BESS</div></div>
       </div>
       <div class="btnrow" style="margin-top:18px">
         <button class="btn primary" data-go="p-site">Next: site boundary →</button>
@@ -920,16 +953,16 @@ const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analys
   waterRings:null}; // user-uploaded water body polygons (ground truth)
 
 /* ============ PROJECT BRIEF ============ */
-const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:''};
+const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:'',bessYN:'yes',bessMW:'',bessMWh:'',rentAcre:'',rentEsc:''};
 let B={...BRIEF_DEF};
 function initBrief(){
-  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate'].forEach(k=>{
+  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate','bessMW','bessMWh','rentAcre','rentEsc'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||'';
     el.oninput=()=>{B[k]=el.value;syncBriefDisplay();};
   });
-  ['programme','connkV','route','landStatus'].forEach(k=>{
+  ['programme','connkV','route','landStatus','bessYN'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||BRIEF_DEF[k];
@@ -940,9 +973,14 @@ function initBrief(){
 function syncBriefDisplay(){
   const prog=document.getElementById('br-show-prog');
   const dt=document.getElementById('br-show-date');
+  const bessDisp=document.getElementById('br-show-bess');
   if(prog)prog.textContent=B.programme||'LSS6';
   if(dt)dt.textContent=new Date().toLocaleDateString('en-MY',{day:'numeric',month:'long',year:'numeric'});
   if(B.projName)$("projPill").textContent=B.projName+(S.geo?" · "+fmt(S.geo.ha,1)+" ha":"");
+  // show/hide BESS capacity fields
+  const hasBess=!B.bessYN||B.bessYN==='yes';
+  ['br-bessCapWrap','br-bessEnergyWrap'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=hasBess?'':'none';});
+  if(bessDisp)bessDisp.textContent='BESS: '+(hasBess?'Yes':'No');
 }
 document.addEventListener('DOMContentLoaded',()=>{initBrief();});
 
@@ -1689,9 +1727,13 @@ function engineeringSchedule(d){
   const boxTx=Math.max(1,Math.round(mwp*CONSULTANT.boxTx.kvaPerMw/6300)); // ~6.3 MVA units
   const mainTxMVA=Math.ceil(mwac/10)*10*1.1; // round up, +10% margin
   const connkV=pickConnkV(d.env,d.brief);
-  const bessMWh=Math.round(mwac*CONSULTANT.bess.hours); // 2h placeholder
+  const hasBess=d.brief?d.brief.bessYN!==false:true;
+  const bessMWauto=Math.round(mwac*0.25*10)/10;            // 25% of AC capacity
+  const bessMWhAuto=Math.round(mwac*CONSULTANT.bess.hours); // 2 h duration
+  const bessMW=hasBess?(d.brief&&d.brief.bessMW?d.brief.bessMW:bessMWauto):0;
+  const bessMWh=hasBess?(d.brief&&d.brief.bessMWh?d.brief.bessMWh:bessMWhAuto):0;
   const strings=Math.round(modules/28);
-  return {mwp,mwac,modules,inverters,invKw,boxTx,mainTxMVA,connkV,bessMWh,strings,wp};
+  return {mwp,mwac,modules,inverters,invKw,boxTx,mainTxMVA,connkV,hasBess,bessMW,bessMWh,strings,wp};
 }
 // Cable routing options + land-take compensation
 function routingAnalysis(d){
@@ -1716,10 +1758,25 @@ function opexBreakdown(d){
   if(!d.fm)return null;
   const fi=d.fm.inputs,o=d.fm.out;
   const annualOpex=o.capex*fi.opexPct/100; // year-1 RM
+
+  // Land rental — user-specified RM/acre/yr overrides the % allocation
+  const acres=d.geo?d.geo.acres:0;
+  const rentAcre=d.brief.rentAcre;          // RM/acre/yr or null
+  const rentEsc=d.brief.rentEsc||3.0;       // % annual escalation
+  const landRentY1=rentAcre&&acres?rentAcre*acres:null; // explicit RM/yr or null
+
+  const rows=CONSULTANT.opexSplit.map(([label,pct])=>{
+    // Replace the land-lease row with user data if provided
+    if(label.startsWith("Land lease")&&landRentY1!=null){
+      return {label:`Land lease / quit rent (RM ${fmt(rentAcre,0)}/acre/yr, ${fmt(rentEsc,1)}% p.a. escalation)`,
+        pct:null,rm:landRentY1,rmPerMwp:landRentY1/fi.mwp,userDefined:true};
+    }
+    return {label,pct,rm:annualOpex*pct/100,rmPerMwp:annualOpex*pct/100/fi.mwp};
+  });
+
   const perMwp=annualOpex/fi.mwp;
-  const rows=CONSULTANT.opexSplit.map(([label,pct])=>({label,pct,rm:annualOpex*pct/100,
-    rmPerMwp:annualOpex*pct/100/fi.mwp}));
-  return {annualOpex,perMwp,rows,opexPct:fi.opexPct,mwp:fi.mwp};
+  return {annualOpex,perMwp,rows,opexPct:fi.opexPct,mwp:fi.mwp,
+    landRentY1,rentAcre,rentEsc,acres};
 }
 
 /* ============ CHART / ILLUSTRATION HELPERS (canvas → docx PNG) ============ */
@@ -1963,6 +2020,7 @@ function docData(){
     unknowns.push([f[0],f[2],v==="R"?"RED — deal-breaker this session":v==="A"?"AMBER — needs Stage-2 check":"not yet rated"]);});
   unknowns.push(["BESS cost & revenue mechanism","LSS6 RFP — not yet published","sets the bid"]);
   unknowns.push(["Bankable yield (paid Solargis + PVsyst)","Stage 2","±several % of revenue"]);
+  const hasBess=!B.bessYN||B.bessYN==='yes';
   const brief={
     projName: B.projName||S.name||"Unnamed solar project",
     devName:  B.devName||null,
@@ -1975,6 +2033,11 @@ function docData(){
     route:    B.route||"auto",
     landStatus: B.landStatus||"Unknown",
     landRate: B.landRate||null,
+    bessYN:   hasBess,
+    bessMW:   B.bessMW?parseFloat(B.bessMW):null,   // user-entered MW, null = auto
+    bessMWh:  B.bessMWh?parseFloat(B.bessMWh):null, // user-entered MWh, null = auto
+    rentAcre: B.rentAcre?parseFloat(B.rentAcre):null,  // RM/acre/year
+    rentEsc:  B.rentEsc?parseFloat(B.rentEsc):3.0,     // % annual escalation, default 3%
     version:  "Rev 0",
   };
   const d0={name:brief.projName,date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
@@ -2084,6 +2147,8 @@ async function makeTechProposal(d){
     ROW2("Connection voltage",eng?eng.connkV+" kV  (auto-selected by plant size)":"MISSING"),
     ROW2("Solar resource (GHI)",d.res?`${f(d.res.ghi,1)} kWh/m²/yr  |  Specific yield ${f(d.res.pvout,0)} kWh/kWp/yr  (${d.res.tierLabel})`:"MISSING — load in Sunshine tab"),
     ROW2("Est. annual generation",annGWh?`${f(annGWh,0)} GWh/yr (screening grade)`:"—"),
+    ROW2("BESS",b.bessYN===false?"Not included — PV only":`${eng&&eng.bessMW?f(eng.bessMW,1)+" MW / ":""}${eng&&eng.bessMWh?f(eng.bessMWh,0)+" MWh — ":""}LFP, liquid-cooled, ${eng&&eng.bessMW&&eng.bessMWh?f(eng.bessMWh/eng.bessMW,1)+"-hour":"2-hour"} duration`),
+    ROW2("Land rental",b.rentAcre&&d.geo?`RM ${f(b.rentAcre,0)}/acre/yr × ${f(d.geo.acres,1)} acres = RM ${f(b.rentAcre*d.geo.acres/1e3,0)}k/yr (Year 1); ${f(b.rentEsc||3,1)}% p.a. escalation`:"Not specified — refer OPEX section"),
     ROW2("Report date",d.date),
     ROW2("Document version",b.version),
     ROW2("Prepared by",b.preparedBy),
@@ -2212,9 +2277,15 @@ async function makeTechProposal(d){
     C.push(INFO("FPV engineering","A detailed FPV structural and mooring study, bathymetric survey, and wave/wind loading assessment are Stage-2 requirements before EPCC tender. Water depth, water quality (ex-mining ponds may be acidic) and ownership status must be confirmed.","D94436"));
   }
   C.push(H2("3.6  Battery Energy Storage System (BESS)"));
-  C.push(P(`The LSS6 programme mandates BESS integration; the sizing rule and revenue mechanism are not yet published in the RFP. Based on current Malaysian procurement precedents and the consultant's basis, a ${CONSULTANT.bess.tech} with ${CONSULTANT.bess.cont} and ~${CONSULTANT.bess.hours}-hour duration at the AC rating is assumed as a placeholder. ${CONSULTANT.bess.note}`));
-  C.push(P(`At the screening-stage plant size of ${eng?f(eng.mwac,1)+" MWac":"TBC"}, a 2-hour placeholder implies approximately ${eng?f(eng.bessMWh)+" MWh":"TBC"} of BESS capacity. The LFP chemistry is specified due to its thermal stability (critical for Malaysian ambient conditions up to 40°C), 6,000+ cycle life, and status as the most bankable cell chemistry for project finance. Liquid-cooled containerised systems are preferred over air-cooled for Malaysian ambient temperatures.`));
-  C.push(INFO("BESS cost exclusion","BESS capital cost and annual augmentation reserve are excluded from the financial model — including an assumed cost without a corresponding revenue rule would fabricate a result. The financial tables should be re-run once the LSS6 RFP discloses the battery payment mechanism.","D94436"));
+  if(b.bessYN===false){
+    C.push(INFO("BESS not included","This project is configured as PV-only. No BESS is included in the scope, financial model, or procurement plan. Review this decision if the programme requires BESS.","5B6B85"));
+  } else {
+    const bmw=eng&&eng.bessMW?eng.bessMW:null;
+    const bmwh=eng&&eng.bessMWh?eng.bessMWh:null;
+    C.push(P(`The ${b.programme==="LSS6"?"LSS6 programme mandates":"project includes"} BESS integration. Based on ${b.bessMW||b.bessMWh?"the client's specified sizing":"current Malaysian procurement precedents"}, a ${CONSULTANT.bess.tech} unit is proposed with a power capacity of ${bmw?f(bmw,1)+" MW":"TBC"} and energy capacity of ${bmwh?f(bmwh,0)+" MWh":"TBC"} (${bmw&&bmwh?f(bmwh/bmw,1)+"-hour":"~2-hour"} duration). ${CONSULTANT.bess.cont}. ${CONSULTANT.bess.note}`));
+    C.push(P(`LFP chemistry is specified for thermal stability (Malaysian ambient up to 40°C), 6,000+ cycle life, and bankability under project finance. Liquid-cooled containerised systems are preferred over air-cooled. BESS capital cost and augmentation reserve are ${b.programme==="LSS6"?"excluded from the financial model pending the LSS6 RFP revenue mechanism":"included in the CAPEX budget at a screening estimate"}.`));
+    C.push(INFO("BESS cost note","BESS capital cost and annual augmentation reserve are separated from the PV financial model — including an assumed cost without a confirmed revenue rule would produce a misleading result. Re-run the financial tables once the programme RFP discloses the battery payment mechanism.","D94436"));
+  }
   C.push(H2("3.7  Balance of Plant (BoP) & Civil Works"));
   C.push(P("The Balance of Plant (BoP) and civil works scope includes the following principal items:"));
   [
@@ -2348,12 +2419,20 @@ async function makeTechProposal(d){
     C.push(H2("6.4  Operating Expenditure (OPEX)"));
     const ox=d.opex;
     if(ox){
-      C.push(P(`Annual O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX in Year 1, equivalent to RM ${f(ox.annualOpex/1e6,2)} million/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating at 3%/yr thereafter. The consultant's indicative split across O&M activities is:`));
+      C.push(P(`Annual O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX in Year 1, equivalent to RM ${f(ox.annualOpex/1e6,2)} million/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating at ${b.rentEsc||3}%/yr thereafter. The consultant's indicative split across O&M activities is set out below.${ox.landRentY1!=null?" Land rental is based on the client-specified rate of RM "+f(ox.rentAcre||0,0)+"/acre/yr × "+f(ox.acres||0,1)+" acres, escalating at "+f(ox.rentEsc||3,1)+"%/yr.":""}`));
       const opexRows=[ROW3("O&M activity","RM '000 / yr  (Year 1)","% share",54,26,true)];
-      ox.rows.forEach(r=>opexRows.push(ROW3(r.label,f(r.rm/1e3,0),f(r.pct,0)+"%")));
-      opexRows.push(ROW3("TOTAL",f(ox.annualOpex/1e3,0)+"  (≡ RM "+f(ox.annualOpex/1e6,2)+"m)","100%"));
+      ox.rows.forEach(r=>opexRows.push(ROW3(r.label,f(r.rm/1e3,0),r.userDefined?"(user-defined)":f(r.pct,0)+"%")));
+      const totalRm=ox.rows.reduce((s,r)=>s+r.rm,0);
+      opexRows.push(ROW3("TOTAL OPEX (Year 1)",f(totalRm/1e3,0)+"  (≡ RM "+f(totalRm/1e6,2)+"m)","—"));
+      if(ox.rentAcre&&ox.acres){
+        const rentY5=ox.landRentY1*Math.pow(1+ox.rentEsc/100,4);
+        const rentY10=ox.landRentY1*Math.pow(1+ox.rentEsc/100,9);
+        opexRows.push(ROW3("  → Land rental Year 5 (escalated)","RM "+f(rentY5/1e3,0)+"k","—"));
+        opexRows.push(ROW3("  → Land rental Year 10 (escalated)","RM "+f(rentY10/1e3,0)+"k","—"));
+      }
       C.push(TBL(opexRows));
-      C.push(new Paragraph({spacing:{before:60,after:80},children:[new TextRun({text:"BESS augmentation reserve is a placeholder; actual cost and fund-draw trigger will be defined in the O&M agreement once the RFP battery duty cycle is published. All other line items are based on typical Malaysian LSS O&M contract structures.",italics:true,size:17,color:"5B6B85"})]}));
+      if(ox.rentAcre)C.push(P(`Land lease: RM ${f(ox.rentAcre,0)}/acre/yr × ${f(ox.acres||0,1)} acres = RM ${f((ox.landRentY1||0)/1e3,0)}k in Year 1, growing to RM ${f(((ox.landRentY1||0)*Math.pow(1+ox.rentEsc/100,20))/1e3,0)}k by Year 21 at ${f(ox.rentEsc||3,1)}% p.a. escalation — a total of RM ${f(((ox.landRentY1||0)*((Math.pow(1+ox.rentEsc/100,21)-1)/(ox.rentEsc/100)))/1e6,2)}m over the PPA tenor.`));
+      C.push(new Paragraph({spacing:{before:40,after:80},children:[new TextRun({text:"BESS augmentation reserve is a placeholder pending the O&M agreement and RFP battery duty cycle. All other line items are based on typical Malaysian LSS O&M contract structures.",italics:true,size:17,color:"5B6B85"})]}));
     }
   } else C.push(MISS("Financial model not run — complete Plant Size and Money tabs.","tabs 3 & 4"));
   C.push(pb());
