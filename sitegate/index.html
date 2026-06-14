@@ -269,7 +269,7 @@ tr:nth-child(even) td{background:#FAFBFD}
               <option value="Unknown">Unknown — to be confirmed</option>
             </select>
           </label>
-          <label class="fld"><span class="lb">Land rate <span class="hint">RM/sqft — for wayleave compensation (blank = consultant default)</span></span><input type="number" id="br-landRate" placeholder="auto by area" step="0.1" min="0"></label>
+          <label class="fld"><span class="lb">Land rental rate <span class="hint">RM/acre/year — used in OPEX and reports</span></span><input type="number" id="br-landRate" placeholder="e.g. 800" step="50" min="0"></label>
         </div>
       </div>
       <div class="divider"></div>
@@ -290,19 +290,6 @@ tr:nth-child(even) td{background:#FAFBFD}
         <label class="fld" id="br-bessEnergyWrap">
           <span class="lb">Energy capacity <span class="hint">MWh (2 h duration default)</span></span>
           <input type="number" id="br-bessMWh" placeholder="auto (2 × MW)" step="1" min="0">
-        </label>
-      </div>
-      <div class="divider"></div>
-      <!-- OPEX / LAND -->
-      <h3 style="margin:0 0 10px;font-size:14px;color:var(--navy);letter-spacing:.03em">LAND LEASE / OPEX</h3>
-      <div class="card-row" style="align-items:center;gap:20px;flex-wrap:wrap">
-        <label class="fld">
-          <span class="lb">Land rental rate <span class="hint">RM / acre / year</span></span>
-          <input type="number" id="br-rentAcre" placeholder="e.g. 800" step="50" min="0">
-        </label>
-        <label class="fld">
-          <span class="lb">Annual rental increment <span class="hint">% per year</span></span>
-          <input type="number" id="br-rentEsc" placeholder="e.g. 3" step="0.5" min="0" max="20">
         </label>
       </div>
       <div class="divider"></div>
@@ -585,7 +572,10 @@ function irr(cf){
 }
 function buildFM(i){
   // i: mwp, yld kWh/kWp, tariffSen, ppa yrs, capexPM RM m/MWp, contPct, opexPct, opexEsc, degr, gearPct, intPct, tenor, hurdle
-  const capex=i.mwp*i.capexPM*1e6*(1+i.contPct/100);
+  // optional: bessCapexM (RM million, BESS only)
+  const pvCapex=i.mwp*i.capexPM*1e6*(1+i.contPct/100);
+  const bessCapex=(i.bessCapexM||0)*1e6;
+  const capex=pvCapex+bessCapex;
   const debt=capex*i.gearPct/100, equity=capex-debt, r=i.intPct/100;
   const ds=(i.tenor>0&&debt>0)?(r>0?debt*r/(1-Math.pow(1+r,-i.tenor)):debt/i.tenor):0;
   const projCF=[-capex],eqCF=[-equity];
@@ -603,11 +593,23 @@ function buildFM(i){
     costPV+=opex/Math.pow(1+i.hurdle/100,t);
     cum+=cfads-d;if(payback==null&&cum>=0)payback=t;
   }
-  return{capex,debt,equity,ds,rev1:i.mwp*1000*i.yld*i.tariffSen/100,
+  return{capex,pvCapex,bessCapex,debt,equity,ds,rev1:i.mwp*1000*i.yld*i.tariffSen/100,
     projIRR:irr(projCF),eqIRR:irr(eqCF),npvEq:npvAt(eqCF,i.hurdle/100),
     lcoeSen:energyPV>0?costPV/energyPV*100:null,
     dscrMin:dscrN?dscrMin:null,dscrAvg:dscrN?dscrSum/dscrN:null,payback,
     energy1GWh:i.mwp*i.yld/1000};
+}
+// Bisect to find the tariff (sen/kWh) that hits target equity IRR
+function solveTariff(baseInputs,targetIRR){
+  let lo=5,hi=60;
+  for(let k=0;k<50;k++){
+    const mid=(lo+hi)/2;
+    const r=buildFM({...baseInputs,tariffSen:mid});
+    if(r.eqIRR==null)return null;
+    if(r.eqIRR*100<targetIRR)lo=mid; else hi=mid;
+    if(hi-lo<0.01)break;
+  }
+  return Math.round((lo+hi)/2*10)/10; // round to 0.1 sen
 }
 // ---------- pure terrain: point-in-polygon + slope from height samples ----------
 function pointInPolygon(lon,lat,coords){ // coords: [[lon,lat],...]
@@ -953,10 +955,10 @@ const S={name:null,geo:null,slope:null,res:null,env:null,fm:null,flags:{},analys
   waterRings:null}; // user-uploaded water body polygons (ground truth)
 
 /* ============ PROJECT BRIEF ============ */
-const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:'',bessYN:'yes',bessMW:'',bessMWh:'',rentAcre:'',rentEsc:''};
+const BRIEF_DEF={projName:'',devName:'',epccName:'',preparedBy:'',programme:'LSS6',gridPoint:'',gridKm:'',connkV:'auto',route:'auto',landStatus:'Agricultural',landRate:'',bessYN:'yes',bessMW:'',bessMWh:''};
 let B={...BRIEF_DEF};
 function initBrief(){
-  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate','bessMW','bessMWh','rentAcre','rentEsc'].forEach(k=>{
+  ['projName','devName','epccName','preparedBy','gridPoint','gridKm','landRate','bessMW','bessMWh'].forEach(k=>{
     const el=document.getElementById('br-'+k);
     if(!el)return;
     el.value=B[k]||'';
@@ -1451,26 +1453,46 @@ function renderMoney(){
   }
   calcMoney();
 }
-function fmInputs(){return {mwp:S.env.tot,yld:(S.res&&S.res.pvout)||1259,...fmState};}
+function fmInputs(){
+  const hasBess=!B.bessYN||B.bessYN==='yes';
+  // BESS MWh: user-specified or auto (2h × 25% AC capacity)
+  const mwac=S.env.tot/1.25;
+  const bessMWh=hasBess?(B.bessMWh?parseFloat(B.bessMWh):Math.round(mwac*CONSULTANT.bess.hours)):0;
+  const bessCapexM=hasBess?bessMWh*CONSULTANT.bess.costPerMWh:0;
+  return {mwp:S.env.tot,yld:(S.res&&S.res.pvout)||1259,...fmState,bessCapexM,bessMWh,hasBess};
+}
 function calcMoney(){
-  S.fm={inputs:fmInputs(),out:buildFM(fmInputs())};
+  const inp=fmInputs();
+  S.fm={inputs:inp,out:buildFM(inp)};
   const o=S.fm.out,i=S.fm.inputs;
   const irrTag=o.eqIRR==null?"navy":o.eqIRR*100>=i.hurdle?"good":o.eqIRR*100>=i.hurdle-2?"warn":"bad";
   const dscrTag=o.dscrMin==null?"navy":o.dscrMin>=1.3?"good":o.dscrMin>=1.2?"warn":"bad";
+  // Tariff required to hit 10% equity IRR (with BESS capex included)
+  const targetIRR=10;
+  const optTariff=solveTariff(inp,targetIRR);
+  const bessLine=i.hasBess?`
+      <tr><td>PV CAPEX</td><td class="mono">RM ${fmt(o.pvCapex/1e6,1)} m</td></tr>
+      <tr><td>BESS CAPEX (${fmt(i.bessMWh,0)} MWh × RM ${CONSULTANT.bess.costPerMWh}m/MWh)</td><td class="mono">RM ${fmt(o.bessCapex/1e6,1)} m</td></tr>
+      <tr><td>Total CAPEX (PV + BESS)</td><td class="mono"><b>RM ${fmt(o.capex/1e6,0)} m</b></td></tr>`
+    :`<tr><td>CAPEX (PV only)</td><td class="mono">RM ${fmt(o.capex/1e6,0)} m</td></tr>`;
   $("moneyOut").innerHTML=`
     <div class="stats">
       <div class="stat gold"><div class="v">${o.eqIRR==null?"n/a":fmt(o.eqIRR*100,1)+"<span class='u'>%</span>"}</div><div class="k">Equity IRR</div></div>
       <div class="stat"><div class="v">${o.dscrMin==null?"—":fmt(o.dscrMin,2)+"<span class='u'>×</span>"}</div><div class="k">Worst-year DSCR</div></div>
       <div class="stat"><div class="v">${o.payback?o.payback:"—"}<span class="u">yr</span></div><div class="k">Cash payback</div></div>
-      <div class="stat"><div class="v">${fmt(o.lcoeSen,1)}<span class="u">sen</span></div><div class="k">Break-even price</div></div>
+      <div class="stat"><div class="v">${fmt(o.lcoeSen,1)}<span class="u">sen</span></div><div class="k">Break-even tariff</div></div>
     </div>
+    ${optTariff!=null?`<div class="callout" style="border-left-color:#F5C518;background:#FFFBEA">
+      <b>Optimum tariff for ${targetIRR}% equity IRR: ${optTariff} sen/kWh</b><br>
+      <span style="font-size:13px;color:#5B6B85">At ${i.tariffSen} sen/kWh${i.hasBess?" with BESS":""}, equity IRR = ${o.eqIRR==null?"n/a":fmt(o.eqIRR*100,1)+"%"}.
+      ${optTariff>i.tariffSen?`Need ${fmt(optTariff-i.tariffSen,1)} sen more than current assumption.`:`Current tariff already exceeds target — ${fmt(i.tariffSen-optTariff,1)} sen of headroom.`}</span>
+    </div>`:""}
     <table style="margin-top:12px">
-      <tr><td>CAPEX</td><td class="mono">RM ${fmt(o.capex/1e6,0)} m</td></tr>
-      <tr><td>Equity</td><td class="mono">RM ${fmt(o.equity/1e6,0)} m</td></tr>
+      ${bessLine}
+      <tr><td>Equity (${100-i.gearPct}%)</td><td class="mono">RM ${fmt(o.equity/1e6,0)} m</td></tr>
       <tr><td>Project IRR</td><td class="mono">${o.projIRR==null?"n/a":fmt(o.projIRR*100,1)+"%"}</td></tr>
       <tr><td>Verdict @ ${i.hurdle}% hurdle</td><td><span class="tag ${irrTag}">${irrTag==="good"?"CLEARS":irrTag==="warn"?"MARGINAL":"BELOW"}</span> &nbsp;<span class="tag ${dscrTag}">DSCR ${dscrTag==="good"?"OK":dscrTag==="warn"?"TIGHT":"WEAK"}</span></td></tr>
     </table>
-    <div class="callout">LSS6 makes batteries compulsory but the payment rule is unpublished. These are solar-only numbers; the battery mechanism in the RFP will move them.</div>
     <div class="btnrow"><button class="btn primary" data-go="p-sens">Play with sensitivity →</button></div>`;
   $("moneyOut").querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>goPanel(b.dataset.go));
 }
@@ -1683,6 +1705,7 @@ const CONSULTANT={
     note:"String inverters chosen over central: finer MPPT granularity, modular O&M, better partial-shade and terrain tolerance, no single large point of failure. ~320–350 kW, 1500 Vdc, IP66."},
   bess:{tech:"Lithium Iron Phosphate (LFP), liquid-cooled containerised",
     cont:"~5 MWh per 20-ft unit, integrated PCS, 1500 Vdc",cRate:0.5,hours:2,
+    costPerMWh:1.8, // RM million/MWh — 2026 LFP screening cost (ex-works + installation)
     note:"LFP is the safest/most bankable chemistry for grid BESS. Liquid cooling for Malaysian ambient. Sizing pending LSS6 RFP — assume 2-hour duration at the AC rating as a placeholder."},
   boxTx:{ratio:"0.8/33 kV",type:"Inverter-duty box transformer, ONAN, hermetically sealed",kvaPerMw:1100},
   mainTx:{type:"Outdoor oil-immersed, ONAN, OLTC, conservator",vector:"YNd1"},
@@ -1740,7 +1763,7 @@ function routingAnalysis(d){
   const km=d.brief.gridKm?parseFloat(d.brief.gridKm):null;
   if(!km||!isFinite(km))return null;
   const connkV=pickConnkV(d.env,d.brief);
-  const rate=d.brief.landRate?parseFloat(d.brief.landRate):(CONSULTANT.landRates[d.brief.landStatus]||4.0);
+  const rate=CONSULTANT.landRates[d.brief.landStatus]||4.0; // RM/sqft for wayleave compensation
   // OHL corridor width by voltage (m); UG along road reserve needs negligible acquisition
   const corridorM=connkV>=275?40:connkV>=132?30:20;
   const lengthM=km*1000;
@@ -1759,16 +1782,15 @@ function opexBreakdown(d){
   const fi=d.fm.inputs,o=d.fm.out;
   const annualOpex=o.capex*fi.opexPct/100; // year-1 RM
 
-  // Land rental — user-specified RM/acre/yr overrides the % allocation
+  // Land rental — user-specified RM/acre/yr replaces the % allocation
   const acres=d.geo?d.geo.acres:0;
-  const rentAcre=d.brief.rentAcre;          // RM/acre/yr or null
-  const rentEsc=d.brief.rentEsc||3.0;       // % annual escalation
-  const landRentY1=rentAcre&&acres?rentAcre*acres:null; // explicit RM/yr or null
+  const rentAcre=d.brief?d.brief.landRate:null; // RM/acre/yr or null
+  const rentEsc=3.0;                            // % annual escalation (fixed)
+  const landRentY1=rentAcre&&acres?rentAcre*acres:null;
 
   const rows=CONSULTANT.opexSplit.map(([label,pct])=>{
-    // Replace the land-lease row with user data if provided
     if(label.startsWith("Land lease")&&landRentY1!=null){
-      return {label:`Land lease / quit rent (RM ${fmt(rentAcre,0)}/acre/yr, ${fmt(rentEsc,1)}% p.a. escalation)`,
+      return {label:`Land lease / quit rent (RM ${fmt(rentAcre,0)}/acre/yr × ${fmt(acres,1)} acres, ${fmt(rentEsc,1)}% p.a. escalation)`,
         pct:null,rm:landRentY1,rmPerMwp:landRentY1/fi.mwp,userDefined:true};
     }
     return {label,pct,rm:annualOpex*pct/100,rmPerMwp:annualOpex*pct/100/fi.mwp};
@@ -2034,10 +2056,9 @@ function docData(){
     landStatus: B.landStatus||"Unknown",
     landRate: B.landRate||null,
     bessYN:   hasBess,
-    bessMW:   B.bessMW?parseFloat(B.bessMW):null,   // user-entered MW, null = auto
-    bessMWh:  B.bessMWh?parseFloat(B.bessMWh):null, // user-entered MWh, null = auto
-    rentAcre: B.rentAcre?parseFloat(B.rentAcre):null,  // RM/acre/year
-    rentEsc:  B.rentEsc?parseFloat(B.rentEsc):3.0,     // % annual escalation, default 3%
+    bessMW:   B.bessMW?parseFloat(B.bessMW):null,
+    bessMWh:  B.bessMWh?parseFloat(B.bessMWh):null,
+    landRate: B.landRate?parseFloat(B.landRate):null, // RM/acre/year (land rental)
     version:  "Rev 0",
   };
   const d0={name:brief.projName,date:new Date().toLocaleDateString("en-MY",{day:"numeric",month:"long",year:"numeric"}),
@@ -2148,7 +2169,7 @@ async function makeTechProposal(d){
     ROW2("Solar resource (GHI)",d.res?`${f(d.res.ghi,1)} kWh/m²/yr  |  Specific yield ${f(d.res.pvout,0)} kWh/kWp/yr  (${d.res.tierLabel})`:"MISSING — load in Sunshine tab"),
     ROW2("Est. annual generation",annGWh?`${f(annGWh,0)} GWh/yr (screening grade)`:"—"),
     ROW2("BESS",b.bessYN===false?"Not included — PV only":`${eng&&eng.bessMW?f(eng.bessMW,1)+" MW / ":""}${eng&&eng.bessMWh?f(eng.bessMWh,0)+" MWh — ":""}LFP, liquid-cooled, ${eng&&eng.bessMW&&eng.bessMWh?f(eng.bessMWh/eng.bessMW,1)+"-hour":"2-hour"} duration`),
-    ROW2("Land rental",b.rentAcre&&d.geo?`RM ${f(b.rentAcre,0)}/acre/yr × ${f(d.geo.acres,1)} acres = RM ${f(b.rentAcre*d.geo.acres/1e3,0)}k/yr (Year 1); ${f(b.rentEsc||3,1)}% p.a. escalation`:"Not specified — refer OPEX section"),
+    ROW2("Land rental",b.landRate&&d.geo?`RM ${f(b.landRate,0)}/acre/yr × ${f(d.geo.acres,1)} acres = RM ${f(b.landRate*d.geo.acres/1e3,0)}k/yr (Year 1); 3% p.a. escalation`:"Not specified — refer OPEX section"),
     ROW2("Report date",d.date),
     ROW2("Document version",b.version),
     ROW2("Prepared by",b.preparedBy),
@@ -2164,16 +2185,20 @@ async function makeTechProposal(d){
   C.push(P(`This Technical Proposal presents a screening-stage assessment for the ${b.projName} solar photovoltaic (PV) power plant to be submitted under the ${b.programme} programme administered by Suruhanjaya Tenaga (ST), Malaysia. ${b.programme==="LSS6"?"The sixth edition of the Large Scale Solar programme carries a national target of 2,000 MW AC capacity with a mandatory battery energy storage system (BESS) component, reflecting the Government's commitment to achieving 70% renewable energy generation by 2050.":""}`));
   if(d.geo&&d.env)C.push(P(`The proposed site covers ${f(d.geo.ha,1)} ha (${f(d.geo.acres,0)} acres) ${d.env.fpvMW>0?`comprising both water body and dryland, supporting a hybrid floating PV (${f(d.env.fpvMW)} MWp) and ground-mount (${f(d.env.gmMW)} MWp) configuration for a combined installed DC capacity of ${f(d.env.tot)} MWp at STC`:`and supports a ground-mounted plant of approximately ${f(d.env.tot)} MWp at STC`}. The site's topography and solar resource are assessed from satellite and public data at this screening stage; a bankable energy assessment (Solargis P50/P90 + PVsyst modelling) will be commissioned at Stage 2.`));
   if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
-    C.push(P(`At a build cost of RM ${fi.capexPM}m/MWp and a ${fi.tariffSen} sen/kWh tariff, the project returns an equity IRR of ${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%"} against a ${fi.hurdle}% hurdle, with a worst-year DSCR of ${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"}. These figures exclude the BESS cost and revenue mechanism, which remains unpublished; the LSS6 RFP tariff structure will be the decisive variable.`));
+    const _optT=solveTariff(fi,fi.hurdle);
+    C.push(P(`At a build cost of RM ${fi.capexPM}m/MWp${fi.hasBess?` plus RM ${f(o.bessCapex/1e6,1)}m BESS (${f(fi.bessMWh,0)} MWh LFP)`:""}, total project CAPEX is RM ${f(o.capex/1e6,0)} million. At a ${fi.tariffSen} sen/kWh tariff, the project returns an equity IRR of ${o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%"} against the ${fi.hurdle}% hurdle, with a worst-year DSCR of ${o.dscrMin==null?"—":f(o.dscrMin,2)+"×"}. ${_optT!=null?"The tariff required to achieve exactly "+fi.hurdle+"% equity IRR with BESS included is "+_optT+" sen/kWh — the recommended LSS6 bid price.":""}`));
     C.push(TBL([
       ROW4("Key metric","Figure","Unit","Basis",true),
       ROW4("Installed DC capacity",f(d.env.tot),"MWp","Satellite terrain screening"),
       ROW4("Annual energy generation",annGWh?f(annGWh,0):"—","GWh/yr","Screening yield model"),
-      ROW4("Plant CAPEX (excl. BESS)",f(o.capex/1e6,0),"RM million","RM "+fi.capexPM+"m/MWp + "+fi.contPct+"% cont."),
-      ROW4("Equity IRR",o.eqIRR==null?"n/a":f(o.eqIRR*100,1),"%","At "+fi.tariffSen+" sen/kWh tariff"),
-      ROW4("Worst-year DSCR",o.dscrMin==null?"—":f(o.dscrMin,2),"×","Debt cover, "+fi.gearPct+"% gearing"),
-      ROW4("Break-even tariff",f(o.lcoeSen,1),"sen/kWh","Solar-only (BESS excl.)"),
-      ROW4("Cash payback",o.payback?"Year "+o.payback:"Beyond PPA","",""+fi.tenor+"-yr PPA"),
+      ROW4("PV plant CAPEX",f(o.pvCapex/1e6,1),"RM million","RM "+fi.capexPM+"m/MWp + "+fi.contPct+"% cont."),
+      fi.hasBess?ROW4("BESS CAPEX ("+f(fi.bessMWh,0)+" MWh)",f(o.bessCapex/1e6,1),"RM million","RM "+CONSULTANT.bess.costPerMWh+"m/MWh — LFP screening rate"):null,
+      ROW4("Total project CAPEX",f(o.capex/1e6,0),"RM million",fi.hasBess?"PV + BESS combined":"PV only"),
+      ROW4("Equity IRR",o.eqIRR==null?"n/a":f(o.eqIRR*100,1),"%","At "+fi.tariffSen+" sen/kWh, "+fi.hurdle+"% hurdle"),
+      ROW4("Tariff for "+fi.hurdle+"% equity IRR",solveTariff(fi,fi.hurdle)!=null?solveTariff(fi,fi.hurdle)+" sen":"n/a","sen/kWh","Optimum bid tariff — back-solved"),
+      ROW4("Worst-year DSCR",o.dscrMin==null?"—":f(o.dscrMin,2),"×","Debt cover at "+fi.gearPct+"% gearing"),
+      ROW4("Break-even tariff (LCOE)",f(o.lcoeSen,1),"sen/kWh","Project-level LCOE"),
+      ROW4("Cash payback",o.payback?"Year "+o.payback:"Beyond PPA","",""+fi.tenor+"-yr debt, "+fi.ppa+"-yr PPA"),
     ]));
   }
   C.push(new Paragraph({spacing:{before:100,after:80}}));
@@ -2192,7 +2217,7 @@ async function makeTechProposal(d){
   else C.push(MISS("Site geometry — no KML boundary loaded.","load KML in Site tab"));
   C.push(H2("1.3  Document Scope"));
   C.push(P("This Technical Proposal covers the following subject areas: site description and boundary; solar resource; technical design and equipment selection; grid connection requirements; energy yield analysis; project financial model; project execution and quality plan; health, safety and environmental commitments; regulatory approvals pathway; and a formal risk register. The document is prepared at screening stage and is not a bankable feasibility study, an EIA, or a detailed engineering submission."));
-  C.push(INFO("Scope limitation","BESS sizing, cost and revenue mechanism are deliberately excluded — pending the LSS6 RFP. Solar-only numbers are presented. Loading a BESS capex without a corresponding revenue rule would produce a misleading financial result.","B5860B"));
+  if(b.bessYN===false)C.push(INFO("BESS not in scope","This submission is configured as PV-only. If the programme mandates BESS, return to the Project tab and set BESS to Yes.","B5860B"));
   C.push(pb());
 
   // ══════════════════════════════════════════════════════════════
@@ -2387,51 +2412,58 @@ async function makeTechProposal(d){
   C.push(H1("6   FINANCIAL ANALYSIS"));
   C.push(H2("6.1  Capital Expenditure (CAPEX)"));
   if(d.fm&&d.env){const fi=d.fm.inputs,o=d.fm.out;
-    C.push(P(`Total project CAPEX is estimated at RM ${f(o.capex/1e6,0)} million (RM ${fi.capexPM}m/MWp + ${fi.contPct}% contingency) for the solar plant. BESS capital cost is excluded pending the LSS6 RFP pricing mechanism. The indicative CAPEX breakdown by cost centre is:`));
-    const capex=o.capex;
-    const splits=[["PV modules (TOPCon bifacial, supply & freight)",0.41],["String inverters",0.09],["Mounting structures & driven piles",0.11],
+    const optT6=solveTariff(fi,fi.hurdle);
+    C.push(P(`Total project CAPEX is estimated at RM ${f(o.capex/1e6,0)} million, comprising the PV plant at RM ${f(o.pvCapex/1e6,1)} million (RM ${fi.capexPM}m/MWp + ${fi.contPct}% contingency)${fi.hasBess?` and the BESS at RM ${f(o.bessCapex/1e6,1)} million (${f(fi.bessMWh,0)} MWh × RM ${CONSULTANT.bess.costPerMWh}m/MWh, LFP, 2026 screening rate)`:""}.`));
+    const pvBase=o.pvCapex;
+    const pvSplits=[["PV modules (TOPCon bifacial, supply & freight)",0.41],["String inverters",0.09],["Mounting structures & driven piles",0.11],
       ["DC cabling, combiners & connectors",0.05],["AC LV cabling & BoP",0.03],
-      ["MV/HV substation, transformers & GIS",0.09],["BESS (placeholder — excl. from total)",0],
+      ["MV/HV substation, transformers & GIS",0.09],
       ["Civil works, roads & drainage",0.10],["SCADA, PPC, metering & communications",0.02],
       ["Engineering, procurement & management",0.05],["Contingency ("+fi.contPct+"%)",fi.contPct/100/(1+fi.contPct/100)]];
-    const baseCapex=capex/(1+fi.contPct/100);
-    C.push(TBL([ROW3("Cost centre","RM million","% of total",50,25,true),
-      ...splits.map(([label,pct])=>ROW3(label,pct>0?f(capex*pct,1):"excl.",pct>0?f(pct*100,0)+"%":"—")),
-      ROW3("TOTAL CAPEX (excl. BESS)",f(o.capex/1e6,1),"100%"),
+    C.push(TBL([ROW3("Cost centre","RM million","% of PV CAPEX",50,25,true),
+      ...pvSplits.map(([label,pct])=>ROW3(label,f(pvBase*pct,1),f(pct*100,0)+"%")),
+      ROW3("PV plant sub-total",f(pvBase/1e6,1),"100%"),
+      ...(fi.hasBess?[ROW3("BESS ("+f(fi.bessMWh,0)+" MWh LFP @ RM "+CONSULTANT.bess.costPerMWh+"m/MWh)",f(o.bessCapex/1e6,1),"—")]:[]),
+      ROW3("TOTAL PROJECT CAPEX",f(o.capex/1e6,1),fi.hasBess?"PV + BESS":"—"),
     ]));
     C.push(H2("6.2  Revenue & Tariff"));
-    C.push(P(`Revenue is modelled under a single fixed-price PPA structure for ${fi.ppa} years at ${fi.tariffSen} sen/kWh for all metered export energy. The tariff is a sensitivity input — the winning bid price will be determined at the LSS6 RFP stage. LSS4 clearing prices ranged from 17.7–24.8 sen/kWh; LSS5/5+ cleared at approximately 13–16 sen/kWh, reflecting falling module costs and increased competition. The break-even tariff for this project (solar-only) is ${f(o.lcoeSen,1)} sen/kWh.`));
+    C.push(P(`Revenue is modelled under a single fixed-price PPA for ${fi.ppa} years at ${fi.tariffSen} sen/kWh. LSS4 cleared at 17.7–24.8 sen/kWh; LSS5/5+ at approximately 13–16 sen/kWh. The project LCOE is ${f(o.lcoeSen,1)} sen/kWh (floor). ${optT6!=null?"Back-solving from the "+fi.hurdle+"% equity IRR target yields an optimum bid tariff of "+optT6+" sen/kWh — this is the minimum price at which the project earns its hurdle return on the full "+fi.hasBess?"(PV + BESS) ":"(PV-only) "+"capital deployed.":""}`));
+    if(optT6!=null)C.push(INFO("Optimum bid tariff — "+optT6+" sen/kWh","This is the tariff required to deliver exactly "+fi.hurdle+"% equity IRR given CAPEX of RM "+f(o.capex/1e6,0)+"m, "+fi.gearPct+"% gearing at "+fi.intPct+"%, and OPEX at "+fi.opexPct+"% of CAPEX. Sensitivity: every 1 sen/kWh change in tariff moves equity IRR by approximately "+f(Math.abs((buildFM({...fi,tariffSen:fi.tariffSen+1}).eqIRR||0)-(buildFM({...fi,tariffSen:fi.tariffSen-1}).eqIRR||0))*50,1)+" pp.","1F9D6B"));
     C.push(H2("6.3  Financial Model Results"));
     C.push(TBL([
       ROW2("Financial metric","Screening value",true),
-      ROW2("Total CAPEX (solar)",`RM ${f(o.capex/1e6,0)} million (excl. BESS)`),
+      ROW2("PV plant CAPEX",`RM ${f(o.pvCapex/1e6,1)} million`),
+      ...(fi.hasBess?[ROW2("BESS CAPEX ("+f(fi.bessMWh,0)+" MWh LFP)",`RM ${f(o.bessCapex/1e6,1)} million`)]:[]),
+      ROW2("Total project CAPEX",`RM ${f(o.capex/1e6,0)} million`),
       ROW2("Equity contribution ("+fi.gearPct+"% debt)", `RM ${f(o.equity/1e6,0)} million  (${100-fi.gearPct}% of CAPEX)`),
       ROW2("Term loan","RM "+f((o.capex-o.equity)/1e6,0)+" million @ "+fi.intPct+"% p.a. × "+fi.tenor+" years"),
-      ROW2("Tariff assumed",fi.tariffSen+" sen/kWh"),
+      ROW2("Tariff modelled",fi.tariffSen+" sen/kWh"),
+      ROW2("Optimum tariff (target "+fi.hurdle+"% equity IRR)",optT6!=null?optT6+" sen/kWh":"n/a"),
       ROW2("PPA tenor",fi.ppa+" years"),
       ROW2("Equity IRR",o.eqIRR==null?"n/a":f(o.eqIRR*100,1)+"%  (hurdle: "+fi.hurdle+"%)"),
       ROW2("Project IRR",o.projIRR==null?"n/a":f(o.projIRR*100,1)+"%"),
       ROW2("Minimum DSCR",o.dscrMin==null?"—":f(o.dscrMin,2)+"×  (lender floor: 1.20×)"),
       ROW2("Cash payback",o.payback?"Year "+o.payback+" of "+fi.ppa:"Beyond PPA tenor"),
-      ROW2("Break-even tariff (solar-only)",f(o.lcoeSen,1)+" sen/kWh"),
+      ROW2("Project LCOE (break-even tariff)",f(o.lcoeSen,1)+" sen/kWh"),
     ]));
     FIG(_iTorn,400,185,'IRR sensitivity tornado chart. Each lever flexed ±20% from base. Tariff is invariably the dominant driver in Malaysian LSS projects; CAPEX is second.').forEach(p=>C.push(p));
     C.push(H2("6.4  Operating Expenditure (OPEX)"));
     const ox=d.opex;
     if(ox){
-      C.push(P(`Annual O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX in Year 1, equivalent to RM ${f(ox.annualOpex/1e6,2)} million/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating at ${b.rentEsc||3}%/yr thereafter. The consultant's indicative split across O&M activities is set out below.${ox.landRentY1!=null?" Land rental is based on the client-specified rate of RM "+f(ox.rentAcre||0,0)+"/acre/yr × "+f(ox.acres||0,1)+" acres, escalating at "+f(ox.rentEsc||3,1)+"%/yr.":""}`));
+      C.push(P(`Annual O&M is modelled at ${f(ox.opexPct,1)}% of CAPEX in Year 1, equivalent to RM ${f(ox.annualOpex/1e6,2)} million/yr (RM ${f(ox.perMwp,0)}/MWp/yr), escalating at 3%/yr thereafter. The consultant's indicative split across O&M activities is set out below.${ox.landRentY1!=null?" Land rental is based on the client-specified rate of RM "+f(ox.rentAcre||0,0)+"/acre/yr × "+f(ox.acres||0,1)+" acres, escalating at "+f(ox.rentEsc||3,1)+"% p.a.":""}`));
       const opexRows=[ROW3("O&M activity","RM '000 / yr  (Year 1)","% share",54,26,true)];
       ox.rows.forEach(r=>opexRows.push(ROW3(r.label,f(r.rm/1e3,0),r.userDefined?"(user-defined)":f(r.pct,0)+"%")));
       const totalRm=ox.rows.reduce((s,r)=>s+r.rm,0);
       opexRows.push(ROW3("TOTAL OPEX (Year 1)",f(totalRm/1e3,0)+"  (≡ RM "+f(totalRm/1e6,2)+"m)","—"));
-      if(ox.rentAcre&&ox.acres){
-        const rentY5=ox.landRentY1*Math.pow(1+ox.rentEsc/100,4);
-        const rentY10=ox.landRentY1*Math.pow(1+ox.rentEsc/100,9);
-        opexRows.push(ROW3("  → Land rental Year 5 (escalated)","RM "+f(rentY5/1e3,0)+"k","—"));
+      if(ox.landRentY1&&ox.acres){
+        const esc=ox.rentEsc/100;
+        const rentY5=ox.landRentY1*Math.pow(1+esc,4);
+        const rentY10=ox.landRentY1*Math.pow(1+esc,9);
+        opexRows.push(ROW3("  → Land rental Year 5 (escalated @ 3% p.a.)","RM "+f(rentY5/1e3,0)+"k","—"));
         opexRows.push(ROW3("  → Land rental Year 10 (escalated)","RM "+f(rentY10/1e3,0)+"k","—"));
       }
       C.push(TBL(opexRows));
-      if(ox.rentAcre)C.push(P(`Land lease: RM ${f(ox.rentAcre,0)}/acre/yr × ${f(ox.acres||0,1)} acres = RM ${f((ox.landRentY1||0)/1e3,0)}k in Year 1, growing to RM ${f(((ox.landRentY1||0)*Math.pow(1+ox.rentEsc/100,20))/1e3,0)}k by Year 21 at ${f(ox.rentEsc||3,1)}% p.a. escalation — a total of RM ${f(((ox.landRentY1||0)*((Math.pow(1+ox.rentEsc/100,21)-1)/(ox.rentEsc/100)))/1e6,2)}m over the PPA tenor.`));
+      if(ox.landRentY1&&ox.rentAcre)C.push(P(`Land lease: RM ${f(ox.rentAcre,0)}/acre/yr × ${f(ox.acres||0,1)} acres = RM ${f((ox.landRentY1)/1e3,0)}k in Year 1, growing to RM ${f((ox.landRentY1*Math.pow(1+ox.rentEsc/100,20))/1e3,0)}k by Year 21 at 3% p.a. escalation — a total of RM ${f((ox.landRentY1*((Math.pow(1+ox.rentEsc/100,21)-1)/(ox.rentEsc/100)))/1e6,2)}m over the PPA tenor.`));
       C.push(new Paragraph({spacing:{before:40,after:80},children:[new TextRun({text:"BESS augmentation reserve is a placeholder pending the O&M agreement and RFP battery duty cycle. All other line items are based on typical Malaysian LSS O&M contract structures.",italics:true,size:17,color:"5B6B85"})]}));
     }
   } else C.push(MISS("Financial model not run — complete Plant Size and Money tabs.","tabs 3 & 4"));
